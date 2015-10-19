@@ -186,6 +186,7 @@ public class GridUtil {
                 if (null!=func) {
                     combobox.setModel((ListModel<?>) func.call());
                 }
+                return combobox;
             } else {
                 return cell.inputType().newInstance();
             }
