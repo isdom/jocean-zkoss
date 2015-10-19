@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.zkoss.annotation.Cell;
@@ -11,6 +12,7 @@ import org.zkoss.zk.ui.Component;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
 import org.zkoss.zul.Columns;
+import org.zkoss.zul.Combobox;
 import org.zkoss.zul.Datebox;
 import org.zkoss.zul.Hbox;
 import org.zkoss.zul.Label;
@@ -82,8 +84,7 @@ public class GridUtil {
             }};
     }
 
-    public static <T> ListModel<T> buildBeanListModel(
-            final T bean) {
+    public static <T> ListModel<T> buildBeanListModel(final T bean) {
         final Field[] fields = ReflectUtils.getAnnotationFieldsOf(bean.getClass(), Cell.class);
         final int rowCount = calcRowCount(fields);
         
@@ -127,7 +128,8 @@ public class GridUtil {
         return cols + 1;
     }
     
-    public static <T> RowRenderer<T> buildBeanRowRenderer(final Class<T> cls) {
+    public static <T> RowRenderer<T> buildBeanRowRenderer(final Class<T> cls,
+            final Map<String, Func0<Object>> models) {
         return new RowRenderer<T>() {
         @Override
         public void render(final Row row, final T data, int index)
@@ -144,7 +146,7 @@ public class GridUtil {
                         {
                             this.appendChild(new Label(cell.value()));
                             if (null!=value) {
-                                this.appendChild(buildInput(field, cell, value));
+                                this.appendChild(buildInput(models, field, cell, value));
                             } else {
                                 this.appendChild(new Label("<null>"));
                             }
@@ -175,10 +177,18 @@ public class GridUtil {
         return rowfields;
     }
 
-    private static Component buildInput(final Field field, final Cell cell,final Object value) 
+    private static Component buildInput(final Map<String, Func0<Object>> models, final Field field, final Cell cell,final Object value) 
             throws Exception {
         if (!cell.inputType().equals(InputElement.class)) {
-            return cell.inputType().newInstance();
+            if (cell.inputType().equals(Combobox.class)) {
+                final Combobox combobox = new Combobox();
+                final Func0<Object> func = models.get(field.getName());
+                if (null!=func) {
+                    combobox.setModel((ListModel<?>) func.call());
+                }
+            } else {
+                return cell.inputType().newInstance();
+            }
         }
         
         if (field.getType().equals(Timestamp.class)) {
