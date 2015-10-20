@@ -202,16 +202,9 @@ public class GridUtil {
             }
 
             private void attachFieldToElement(final T bean, final Field field, final Component element) {
-                if (element instanceof Datebox) {
-                    final Datebox box = (Datebox)element;
-                    box.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
-                        @Override
-                        public void onEvent(final InputEvent event) throws Exception {
-                            setTextToField(bean, field, event.getValue());
-                        }});
-                } else if (element instanceof Textbox) {
-                    final Textbox box = (Textbox)element;
-                    box.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                if (element instanceof InputElement) {
+                    final InputElement input = (InputElement)element;
+                    input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
                         @Override
                         public void onEvent(final InputEvent event) throws Exception {
                             setTextToField(bean, field, event.getValue());
