@@ -13,10 +13,9 @@ import org.zkoss.zul.impl.InputElement;
  *
  */
 @Retention(RetentionPolicy.RUNTIME) 
-public @interface Cell {
-	public abstract String value();
-    public abstract int index() default -1;
-    public abstract int row() default -1;
-    public abstract int col() default -1;
+public @interface UIGrid {
+	public abstract String name();
+    public abstract int row();
+    public abstract int col();
     public abstract Class<? extends InputElement> inputType() default InputElement.class;
 }
