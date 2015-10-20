@@ -3,9 +3,7 @@ package org.jocean.zkoss.model;
 import java.beans.PropertyEditor;
 import java.beans.PropertyEditorManager;
 import java.lang.reflect.Field;
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,21 +16,17 @@ import org.jocean.zkoss.annotation.UIRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zkoss.zk.ui.Component;
-import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.event.InputEvent;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
 import org.zkoss.zul.Columns;
-import org.zkoss.zul.Combobox;
-import org.zkoss.zul.Datebox;
 import org.zkoss.zul.Hbox;
 import org.zkoss.zul.Label;
 import org.zkoss.zul.ListModel;
 import org.zkoss.zul.Row;
 import org.zkoss.zul.RowRenderer;
-import org.zkoss.zul.Textbox;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
 
@@ -246,26 +240,12 @@ public class GridUtil {
     }
 
     private static Component buildElement(final Field field, final UIGrid ui) {
-        if (!ui.uitype().equals(Component.class)) {
-            if (ui.uitype().equals(Combobox.class)) {
-                final Combobox combobox = new Combobox();
-                combobox.addEventListener(Events.ON_SELECT, NOP_EVENTLISTENER);
-                return combobox;
-            } else {
-                try {
-                    return ui.uitype().newInstance();
-                } catch (Exception e) {
-                    LOG.warn("exception when newInstance for {}, detail:{}",
-                            ui.uitype(), ExceptionUtils.exception2detail(e));
-                }
-            }
-        }
-        
-        if (field.getType().equals(Timestamp.class)
-           || field.getType().equals(Date.class)) {
-            return new Datebox();
-        } else {
-            return new Textbox();
+        try {
+            return ui.uitype().newInstance();
+        } catch (Exception e) {
+            LOG.warn("exception when newInstance for {}, detail:{}",
+                    ui.uitype(), ExceptionUtils.exception2detail(e));
+            return new Label(e.toString());
         }
     }
     
@@ -285,10 +265,4 @@ public class GridUtil {
 //        
 //        return rowfields;
 //    }
-    
-    private static final EventListener<Event> NOP_EVENTLISTENER = new EventListener<Event>() {
-        @Override
-        public void onEvent(Event event)
-                throws Exception {
-        }};
 }
