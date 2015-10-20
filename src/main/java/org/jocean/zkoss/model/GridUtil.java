@@ -1,8 +1,11 @@
 package org.jocean.zkoss.model;
 
+import java.beans.PropertyEditor;
+import java.beans.PropertyEditorManager;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,7 @@ import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
+import org.zkoss.zk.ui.event.InputEvent;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
 import org.zkoss.zul.Columns;
@@ -182,6 +186,7 @@ public class GridUtil {
                     final Field field = pair.first;
                     final Component element = this._elements.get(field.getName());
                     if (null!=element) {
+                        attachFieldToElement(data, field, element);
                         try {
                             final Object value = field.get(data);
                             if (null!=value) {
@@ -196,6 +201,35 @@ public class GridUtil {
                 }
             }
 
+            private void attachFieldToElement(final T bean, final Field field, final Component element) {
+                if (element instanceof Datebox) {
+                    final Datebox box = (Datebox)element;
+                    box.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                        @Override
+                        public void onEvent(final InputEvent event) throws Exception {
+                            setTextToField(bean, field, event.getValue());
+                        }});
+                } else if (element instanceof Textbox) {
+                    final Textbox box = (Textbox)element;
+                    box.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                        @Override
+                        public void onEvent(final InputEvent event) throws Exception {
+                            setTextToField(bean, field, event.getValue());
+                        }});
+                }
+            }
+
+            private void setTextToField(
+                    final Object bean,
+                    final Field field, 
+                    final String text) throws Exception {
+                final PropertyEditor editor = PropertyEditorManager.findEditor(field.getType());
+                if (null!=editor) {
+                    editor.setAsText(text);
+                    field.set(bean, editor.getValue());
+                }
+            }
+        
             private void assignValueToElement(final Object value, final Component element) {
                 if (element instanceof InputElement) {
                     ((InputElement)element).setText(value.toString());
@@ -234,7 +268,8 @@ public class GridUtil {
             }
         }
         
-        if (field.getType().equals(Timestamp.class)) {
+        if (field.getType().equals(Timestamp.class)
+           || field.getType().equals(Date.class)) {
             return new Datebox();
         } else {
             return new Textbox();
