@@ -6,7 +6,7 @@ package org.jocean.zkoss.annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-import org.zkoss.zul.impl.InputElement;
+import org.zkoss.zk.ui.Component;
 
 /**
  * @author isdom
@@ -14,8 +14,8 @@ import org.zkoss.zul.impl.InputElement;
  */
 @Retention(RetentionPolicy.RUNTIME) 
 public @interface UIGrid {
-	public abstract String name();
+	public abstract String name() default "";
     public abstract int row();
     public abstract int col();
-    public abstract Class<? extends InputElement> inputType() default InputElement.class;
+    public abstract Class<? extends Component> uitype() default Component.class;
 }

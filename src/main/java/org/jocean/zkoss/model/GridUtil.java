@@ -30,6 +30,7 @@ import org.zkoss.zul.Row;
 import org.zkoss.zul.RowRenderer;
 import org.zkoss.zul.Textbox;
 import org.zkoss.zul.impl.InputElement;
+import org.zkoss.zul.impl.LabelElement;
 
 import rx.functions.Func0;
 import rx.functions.Func2;
@@ -158,10 +159,12 @@ public class GridUtil {
                 return new Hbox() {
                     private static final long serialVersionUID = 1L;
                 {
-                    this.appendChild(new Label(ui.name()));
-                    final InputElement input = buildInput(field, ui);
-                    _inputs.put(field.getName(), input);
-                    this.appendChild(input);
+                    if (!"".equals(ui.name())) {
+                        this.appendChild(new Label(ui.name()));
+                    }
+                    final Component element = buildElement(field, ui);
+                    _elements.put(field.getName(), element);
+                    this.appendChild(element);
                 }};
             }
             @Override
@@ -177,12 +180,12 @@ public class GridUtil {
                     return new Label("");
                 } else {
                     final Field field = pair.first;
-                    final InputElement input = this._inputs.get(field.getName());
-                    if (null!=input) {
+                    final Component element = this._elements.get(field.getName());
+                    if (null!=element) {
                         try {
                             final Object value = field.get(data);
                             if (null!=value) {
-                                input.setText(value.toString());
+                                assignValueToElement(value, element);
                             }
                         } catch (Exception e) {
                             LOG.warn("exception when get value for {}, detail:{}",
@@ -193,36 +196,40 @@ public class GridUtil {
                 }
             }
 
+            private void assignValueToElement(final Object value, final Component element) {
+                if (element instanceof InputElement) {
+                    ((InputElement)element).setText(value.toString());
+                } else if (element instanceof LabelElement) {
+                    ((LabelElement)element).setLabel(value.toString());
+                }
+            }
+
             @SuppressWarnings("unchecked")
             @Override
             public <C extends Component> C getComponent(final String name) {
-                return (C)this._inputs.get(name);
+                return (C)this._elements.get(name);
             }
             
             private final Map<Pair<Integer,Integer>, Pair<Field, Component>> _components = new HashMap<>();
-            private final Map<String, InputElement> _inputs = new HashMap<>();
+            private final Map<String, Component> _elements = new HashMap<>();
             private final int _cols;
         }
         
         return new RowRender();
     }
 
-    private static InputElement buildInput(final Field field, final UIGrid ui) {
-        if (!ui.inputType().equals(InputElement.class)) {
-            if (ui.inputType().equals(Combobox.class)) {
+    private static Component buildElement(final Field field, final UIGrid ui) {
+        if (!ui.uitype().equals(Component.class)) {
+            if (ui.uitype().equals(Combobox.class)) {
                 final Combobox combobox = new Combobox();
-                
-                //combobox.setReadonly(true);
-//                combobox.setWidth("100%");
-//                combobox.setAutodrop(true);
                 combobox.addEventListener(Events.ON_SELECT, NOP_EVENTLISTENER);
                 return combobox;
             } else {
                 try {
-                    return ui.inputType().newInstance();
+                    return ui.uitype().newInstance();
                 } catch (Exception e) {
                     LOG.warn("exception when newInstance for {}, detail:{}",
-                            ui.inputType(), ExceptionUtils.exception2detail(e));
+                            ui.uitype(), ExceptionUtils.exception2detail(e));
                 }
             }
         }
