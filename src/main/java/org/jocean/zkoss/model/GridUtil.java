@@ -140,8 +140,8 @@ public class GridUtil {
         return cols + 1;
     }
     
-    public static <T> RowRenderer<T> buildBeanRowRenderer(final Class<T> cls) {
-        class RowRender implements RowRenderer<T>, ComponentHub {
+    public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final Class<T> cls) {
+        class RowRender implements BeanGridRenderer<T> {
             
             RowRender() {
                 final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, UIGrid.class);
