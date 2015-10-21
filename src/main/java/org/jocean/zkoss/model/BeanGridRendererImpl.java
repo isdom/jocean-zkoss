@@ -16,8 +16,10 @@ import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.event.InputEvent;
+import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Hbox;
 import org.zkoss.zul.Label;
+import org.zkoss.zul.ListModel;
 import org.zkoss.zul.Row;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
@@ -28,7 +30,8 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     
     public BeanGridRendererImpl(final Class<T> cls) {
         final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, UIGrid.class);
-        this._cols = GridUtil.calcColCount(fields);
+        this._cols = calcColCount(fields);
+        this._rows = calcRowCount(fields);
         for (Field field : fields) {
             final UIGrid ui = field.getAnnotation(UIGrid.class);
             this._components.put(Pair.of(ui.row(), ui.col()), 
@@ -57,10 +60,26 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     }
     
     @Override
-    public void render(final Row row, final T data, int rowidx)
+    public <C extends Component> C attachComponent(final int row, final int col, final C comp) {
+        this._components.put(Pair.of(row, col), Pair.of((Field)null, (Component)comp));
+        enlargeRowCol(row, col);
+        return comp;
+    }
+    
+    private void enlargeRowCol(final int row, final int col) {
+        if (this._rows <= row) {
+            this._rows = row+1;
+        }
+        if (this._cols <= col) {
+            this._cols = col+1;
+        }
+    }
+
+    @Override
+    public void render(final Row row, final T bean, int rowidx)
             throws Exception {
         for (int col = 0; col < this._cols; col++) {
-            row.appendChild(renderField(this._components.get(Pair.of(rowidx, col)), data));
+            row.appendChild(renderField(this._components.get(Pair.of(rowidx, col)), bean));
         }
     }
 
@@ -69,14 +88,16 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             return new Label("");
         } else {
             final Field field = pair.first;
-            final Component element = this._elements.get(field.getName());
-            if (null!=element) {
-                attachFieldToElement(bean, field, element);
-                try {
-                    assignValueToElement(field.get(bean), element);
-                } catch (Exception e) {
-                    LOG.warn("exception when get value for {}, detail:{}",
-                            field, ExceptionUtils.exception2detail(e));
+            if (null!=field) {
+                final Component element = this._elements.get(field.getName());
+                if (null!=element) {
+                    attachFieldToElement(bean, field, element);
+                    try {
+                        assignValueToElement(field.get(bean), element);
+                    } catch (Exception e) {
+                        LOG.warn("exception when get value for {}, detail:{}",
+                                field, ExceptionUtils.exception2detail(e));
+                    }
                 }
             }
             return pair.second;
@@ -132,6 +153,22 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     }
     
     @Override
+    public ListModel<T> buildModel(final T bean) {
+        return new AbstractListModel<T>() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public T getElementAt(final int index) {
+                return bean;
+            }
+
+            @Override
+            public int getSize() {
+                return _rows;
+            }};
+    }
+    
+    @Override
     public boolean isDisabled() {
         // TODO Auto-generated method stub
         return false;
@@ -143,7 +180,34 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         
     }
     
+    private static int calcRowCount(final Field[] fields) {
+        int rows = -1;
+        for (Field field : fields) {
+            final UIGrid ui = field.getAnnotation(UIGrid.class);
+            if (null!=ui) {
+                if (ui.row() > rows) {
+                    rows = ui.row();
+                }
+            }
+        }
+        return rows + 1;
+    }
+    
+    private static int calcColCount(final Field[] fields) {
+        int cols = -1;
+        for (Field field : fields) {
+            final UIGrid ui = field.getAnnotation(UIGrid.class);
+            if (null!=ui) {
+                if (ui.col() > cols) {
+                    cols = ui.col();
+                }
+            }
+        }
+        return cols + 1;
+    }
+    
     private final Map<Pair<Integer,Integer>, Pair<Field, Component>> _components = new HashMap<>();
     private final Map<String, Component> _elements = new HashMap<>();
-    private final int _cols;
+    private int _rows;
+    private int _cols;
 }

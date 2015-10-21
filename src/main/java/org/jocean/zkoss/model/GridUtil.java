@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jocean.idiom.ReflectUtils;
-import org.jocean.zkoss.annotation.UIGrid;
 import org.jocean.zkoss.annotation.UIRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,50 +82,6 @@ public class GridUtil {
             }};
     }
 
-    public static <T> ListModel<T> buildBeanListModel(final T bean) {
-        final Field[] fields = ReflectUtils.getAnnotationFieldsOf(bean.getClass(), UIGrid.class);
-        final int rowCount = calcRowCount(fields);
-        
-        return new AbstractListModel<T>() {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public T getElementAt(final int index) {
-                return bean;
-            }
-
-            @Override
-            public int getSize() {
-                return rowCount;
-            }};
-    }
-
-    public static int calcRowCount(final Field[] fields) {
-        int rows = -1;
-        for (Field field : fields) {
-            final UIGrid ui = field.getAnnotation(UIGrid.class);
-            if (null!=ui) {
-                if (ui.row() > rows) {
-                    rows = ui.row();
-                }
-            }
-        }
-        return rows + 1;
-    }
-    
-    public static int calcColCount(final Field[] fields) {
-        int cols = -1;
-        for (Field field : fields) {
-            final UIGrid ui = field.getAnnotation(UIGrid.class);
-            if (null!=ui) {
-                if (ui.col() > cols) {
-                    cols = ui.col();
-                }
-            }
-        }
-        return cols + 1;
-    }
-    
     public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final Class<T> cls) {
         return new BeanGridRendererImpl<T>(cls);
     }
