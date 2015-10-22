@@ -83,7 +83,7 @@ public class GridUtil {
     }
 
     public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final Class<T> cls) {
-        return new BeanGridRendererImpl<T>(cls);
+        return new BeanGridRendererImpl2<T>(cls);
     }
 
     
