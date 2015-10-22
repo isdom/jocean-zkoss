@@ -20,10 +20,13 @@ import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.event.InputEvent;
 import org.zkoss.zk.ui.ext.Disable;
 import org.zkoss.zul.AbstractListModel;
-import org.zkoss.zul.Hbox;
+import org.zkoss.zul.Combobox;
+import org.zkoss.zul.Hlayout;
 import org.zkoss.zul.Label;
 import org.zkoss.zul.ListModel;
 import org.zkoss.zul.Row;
+import org.zkoss.zul.Tree;
+import org.zkoss.zul.TreeModel;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
 
@@ -31,22 +34,43 @@ class BeanGridRendererImpl2<T> implements BeanGridRenderer<T> {
     private static final Logger LOG = 
             LoggerFactory.getLogger(BeanGridRendererImpl2.class);
     
-    public BeanGridRendererImpl2(final Class<T> cls) {
-        final Method[] cellmethods = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
-        final Method[] settermethods = ReflectUtils.getAnnotationMethodsOf(cls, ValueSetter.class);
-        this._cols = calcColCount(cellmethods);
-        this._rows = calcRowCount(cellmethods);
-        for (Method method : cellmethods) {
-            final GridCell cell = method.getAnnotation(GridCell.class);
-            this._components.put(Pair.of(cell.row(), cell.col()), 
-                Triple.of(buildComponent(method, cell), 
-                        method, 
-                        findSetter(settermethods, cell.name())));
+    @SuppressWarnings("unchecked")
+    private static final Triple<Class<? extends Component>,Class<?>,Method>[] _COMPONENT_MODEL = 
+            new Triple[] {
+        Triple.of(Combobox.class, ListModel.class, genMethod(Combobox.class, "setModel", ListModel.class)),
+        Triple.of(Tree.class, TreeModel.class, genMethod(Tree.class, "setModel", TreeModel.class)),
+    };
+
+    private static Method genMethod(final Class<?> cls, final String methodName, final Class<?> ...parameterTypes ) {
+        try {
+            final Method method = cls.getDeclaredMethod(methodName, parameterTypes);
+            if (null!=method) {
+                method.setAccessible(true);
+            }
+            return method;
+        } catch (Exception e) {
+            LOG.warn("exception when getDeclaredMethod for {}/{}, detail:{}",
+                    cls, methodName, ExceptionUtils.exception2detail(e));
+            return null;
         }
     }
     
-    private Method findSetter(final Method[] methods, final String name) {
-        for ( Method m : methods) {
+    public BeanGridRendererImpl2(final Class<T> cls) {
+        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
+        final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, ValueSetter.class);
+        this._cols = calcColCount(getters);
+        this._rows = calcRowCount(getters);
+        for (Method getter : getters) {
+            final GridCell cell = getter.getAnnotation(GridCell.class);
+            this._components.put(Pair.of(cell.row(), cell.col()), 
+                Triple.of(buildComponent(cell), 
+                        getter, 
+                        findSetter(setters, cell.name())));
+        }
+    }
+    
+    private Method findSetter(final Method[] setters, final String name) {
+        for ( Method m : setters) {
             if ( name.equals(m.getAnnotation(ValueSetter.class).name())) {
                 return m;
             }
@@ -54,23 +78,19 @@ class BeanGridRendererImpl2<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private Component buildComponent(final Method method, final GridCell cell) {
-        final Component element = buildElement(cell);
-        this._elements.put(cell.name(), element);
-        if (element instanceof LabelElement) {
-            ((LabelElement)element).setLabel(cell.name());
-            return element;
+    private Component buildComponent(final GridCell cell) {
+        final Component cellcomp = buildCell(cell);
+        this._cells.put(cell.name(), cellcomp);
+        if (cellcomp instanceof LabelElement) {
+            ((LabelElement)cellcomp).setLabel(cell.name());
+            return cellcomp;
         } else {
-//            if ("".equals(cell.name())) {
-//                return element;
-//            } else {
-                return new Hbox() {
-                    private static final long serialVersionUID = 1L;
-                {
-                    this.appendChild(new Label(cell.name()));
-                    this.appendChild(element);
-                }};
-//            }
+            return new Hlayout() {
+                private static final long serialVersionUID = 1L;
+            {
+                this.appendChild(new Label(cell.name()));
+                this.appendChild(cellcomp);
+            }};
         }
     }
     
@@ -102,64 +122,78 @@ class BeanGridRendererImpl2<T> implements BeanGridRenderer<T> {
         if (null == triple) {
             return new Label("");
         } else {
-            final Method cellmethod = triple.second;
+            final Method getter = triple.second;
             final Method setter = triple.third;
-            if (null!=cellmethod) {
-                final Component element = this._elements.get(cellmethod.getAnnotation(GridCell.class).name());
-                if (null!=element) {
-                    assignValueToElement(bean, cellmethod, element);
-                    attachMethodToElement(bean, setter, element);
+            if (null!=getter) {
+                final Component cellcomp = this._cells.get(getter.getAnnotation(GridCell.class).name());
+                if (null!=cellcomp) {
+                    attachBeanToCell(bean, getter, setter, cellcomp);
                 }
             }
             return triple.first;
         }
     }
 
-    private void assignValueToElement(final Object bean, final Method method, final Component element) {
+    private void attachBeanToCell(final T bean, final Method getter, final Method setter, final Component cellcomp) {
         try {
-            final Object value = method.invoke(bean);
+            final Object value = getter.invoke(bean);
             if (null!=value) {
-                if (element instanceof InputElement) {
-                    ((InputElement)element).setText(value.toString());
-                } else if (element instanceof LabelElement) {
-                    ((LabelElement)element).setLabel(value.toString());
-                }
+                assignValueToCell(value, cellcomp);
             }
         } catch (Exception e) {
             LOG.warn("exception when invoke {}.{}, detail: {}", 
-                    bean, method, ExceptionUtils.exception2detail(e));
+                    bean, getter, ExceptionUtils.exception2detail(e));
         } 
-    }
-
-    private void attachMethodToElement(final T bean, final Method method, final Component element) {
-        if (null==method) {
-            if (element instanceof Disable) {
-                ((Disable)element).setDisabled(true);
+        if (null==setter) {
+            if (cellcomp instanceof Disable) {
+                ((Disable)cellcomp).setDisabled(true);
             }
             return;
         }
-        if (element instanceof InputElement) {
-            final InputElement input = (InputElement)element;
+        if (cellcomp instanceof InputElement) {
+            final InputElement input = (InputElement)cellcomp;
             input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
                 @Override
                 public void onEvent(final InputEvent event) throws Exception {
-                    setTextViaMethod(bean, method, event.getValue());
+                    setTextViaMethod(bean, setter, event.getValue());
                 }});
+        }
+    }
+
+    private void assignValueToCell(final Object value,
+            final Component cellcomp) {
+        for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
+            if (triple.first.isAssignableFrom(cellcomp.getClass())
+             && triple.second.isAssignableFrom(value.getClass())) {
+                try {
+                    triple.third.invoke(cellcomp, value);
+                } catch (Exception e) {
+                    LOG.warn("exception when invoke {}/{}, detail: {}",
+                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
+                }
+                return;
+            }
+        }
+        
+        if (cellcomp instanceof InputElement) {
+            ((InputElement)cellcomp).setText(value.toString());
+        } else if (cellcomp instanceof LabelElement) {
+            ((LabelElement)cellcomp).setLabel(value.toString());
         }
     }
 
     private void setTextViaMethod(
             final Object bean,
-            final Method method, 
+            final Method setter, 
             final String text) throws Exception {
-        final PropertyEditor editor = PropertyEditorManager.findEditor(method.getParameterTypes()[0]);
+        final PropertyEditor editor = PropertyEditorManager.findEditor(setter.getParameterTypes()[0]);
         if (null!=editor) {
             editor.setAsText(text);
-            method.invoke(bean, editor.getValue());
+            setter.invoke(bean, editor.getValue());
         }
     }
 
-    private Component buildElement(final GridCell cell) {
+    private Component buildCell(final GridCell cell) {
         try {
             return cell.component().newInstance();
         } catch (Exception e) {
@@ -172,7 +206,7 @@ class BeanGridRendererImpl2<T> implements BeanGridRenderer<T> {
     @SuppressWarnings("unchecked")
     @Override
     public <C extends Component> C getComponent(final String name) {
-        return (C)this._elements.get(name);
+        return (C)this._cells.get(name);
     }
     
     @Override
@@ -230,7 +264,7 @@ class BeanGridRendererImpl2<T> implements BeanGridRenderer<T> {
     }
     
     private final Map<Pair<Integer,Integer>, Triple<Component, Method, Method>> _components = new HashMap<>();
-    private final Map<String, Component> _elements = new HashMap<>();
+    private final Map<String, Component> _cells = new HashMap<>();
     private int _rows;
     private int _cols;
 }
