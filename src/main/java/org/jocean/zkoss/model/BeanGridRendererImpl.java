@@ -39,24 +39,12 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     @SuppressWarnings("unchecked")
     private static final Triple<Class<? extends Component>,Class<?>,Method>[] _COMPONENT_MODEL = 
             new Triple[] {
-        Triple.of(Combobox.class, ListModel.class, genMethod(Combobox.class, "setModel", ListModel.class)),
-        Triple.of(Tree.class, TreeModel.class, genMethod(Tree.class, "setModel", TreeModel.class)),
+        Triple.of(Combobox.class, ListModel.class, 
+                ReflectUtils.getMethodOf(Combobox.class, "setModel", ListModel.class)),
+        Triple.of(Tree.class, TreeModel.class, 
+                ReflectUtils.getMethodOf(Tree.class, "setModel", TreeModel.class)),
     };
 
-    private static Method genMethod(final Class<?> cls, final String methodName, final Class<?> ...parameterTypes ) {
-        try {
-            final Method method = cls.getDeclaredMethod(methodName, parameterTypes);
-            if (null!=method) {
-                method.setAccessible(true);
-            }
-            return method;
-        } catch (Exception e) {
-            LOG.warn("exception when getDeclaredMethod for {}/{}, detail:{}",
-                    cls, methodName, ExceptionUtils.exception2detail(e));
-            return null;
-        }
-    }
-    
     public BeanGridRendererImpl(final T bean) {
         this._bean = bean;
         final Class<?> cls = bean.getClass();
