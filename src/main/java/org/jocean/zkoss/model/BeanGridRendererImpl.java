@@ -11,7 +11,7 @@ import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.Pair;
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.idiom.Triple;
-import org.jocean.zkoss.annotation.GridCell;
+import org.jocean.zkoss.annotation.GridField;
 import org.jocean.zkoss.annotation.ValueSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,19 +48,19 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     public BeanGridRendererImpl(final T bean) {
         this._bean = bean;
         final Class<?> cls = bean.getClass();
-        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
+        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridField.class);
         final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, ValueSetter.class);
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
-            final GridCell cell = getter.getAnnotation(GridCell.class);
-            this._components.put(Pair.of(cell.row(), cell.col()), 
-                Triple.of(buildComponent(cell), 
+            final GridField field = getter.getAnnotation(GridField.class);
+            this._cells.put(Pair.of(field.row(), field.col()), 
+                Triple.of(buildCellComponent(field), 
                         getter, 
-                        findSetter(setters, cell.name())));
+                        findSetter(setters, field.name())));
         }
-        for (Triple<Component, Method, Method> triple : this._components.values()) {
-            prepareComponent(triple, this._bean);
+        for (Triple<Component, Method, Method> triple : this._cells.values()) {
+            prepareCell(triple, this._bean);
         }
     }
     
@@ -73,25 +73,25 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private Component buildComponent(final GridCell cell) {
-        final Component cellcomp = buildCell(cell);
-        this._cells.put(cell.name(), cellcomp);
-        if (cellcomp instanceof LabelElement) {
-            ((LabelElement)cellcomp).setLabel(cell.name());
-            return cellcomp;
+    private Component buildCellComponent(final GridField field) {
+        final Component fieldcomp = buildFieldComponent(field);
+        this._fields.put(field.name(), fieldcomp);
+        if (fieldcomp instanceof LabelElement) {
+            ((LabelElement)fieldcomp).setLabel(field.name());
+            return fieldcomp;
         } else {
             return new Hlayout() {
                 private static final long serialVersionUID = 1L;
             {
-                this.appendChild(new Label(cell.name()));
-                this.appendChild(cellcomp);
+                this.appendChild(new Label(field.name()));
+                this.appendChild(fieldcomp);
             }};
         }
     }
     
     @Override
     public <C extends Component> C attachComponent(final int row, final int col, final C comp) {
-        this._components.put(Pair.of(row, col), Triple.of((Component)comp, (Method)null, (Method)null));
+        this._cells.put(Pair.of(row, col), Triple.of((Component)comp, (Method)null, (Method)null));
         enlargeRowCol(row, col);
         return comp;
     }
@@ -109,11 +109,11 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     public void render(final Row row, final T bean, int rowidx)
             throws Exception {
         for (int col = 0; col < this._cols; col++) {
-            row.appendChild(renderComponent(this._components.get(Pair.of(rowidx, col))));
+            row.appendChild(renderCell(this._cells.get(Pair.of(rowidx, col))));
         }
     }
 
-    private Component renderComponent(final Triple<Component, Method, Method> triple) {
+    private Component renderCell(final Triple<Component, Method, Method> triple) {
         if (null == triple) {
             return new Label("");
         } else {
@@ -121,35 +121,35 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         }
     }
     
-    private void prepareComponent(final Triple<Component, Method, Method> triple, final T bean) {
+    private void prepareCell(final Triple<Component, Method, Method> triple, final T bean) {
         final Method getter = triple.second;
         final Method setter = triple.third;
         if (null!=getter) {
-            final Component cellcomp = this._cells.get(getter.getAnnotation(GridCell.class).name());
-            if (null!=cellcomp) {
-                attachBeanToCell(bean, getter, setter, cellcomp);
+            final Component fieldcomp = this._fields.get(getter.getAnnotation(GridField.class).name());
+            if (null!=fieldcomp) {
+                attachBeanToField(bean, getter, setter, fieldcomp);
             }
         }
     }
 
-    private void attachBeanToCell(final T bean, final Method getter, final Method setter, final Component cellcomp) {
+    private void attachBeanToField(final T bean, final Method getter, final Method setter, final Component fieldcomp) {
         try {
             final Object value = getter.invoke(bean);
             if (null!=value) {
-                assignValueToCell(value, cellcomp);
+                assignValueToField(value, fieldcomp);
             }
         } catch (Exception e) {
             LOG.warn("exception when invoke {}.{}, detail: {}", 
                     bean, getter, ExceptionUtils.exception2detail(e));
         } 
         if (null==setter) {
-            if (cellcomp instanceof Disable) {
-                ((Disable)cellcomp).setDisabled(true);
+            if (fieldcomp instanceof Disable) {
+                ((Disable)fieldcomp).setDisabled(true);
             }
             return;
         }
-        if (cellcomp instanceof InputElement) {
-            final InputElement input = (InputElement)cellcomp;
+        if (fieldcomp instanceof InputElement) {
+            final InputElement input = (InputElement)fieldcomp;
             input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
                 @Override
                 public void onEvent(final InputEvent event) throws Exception {
@@ -158,26 +158,26 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         }
     }
 
-    private void assignValueToCell(final Object value,
-            final Component cellcomp) {
-        attachModelToComponent(value, cellcomp);
+    private void assignValueToField(final Object value,
+            final Component fieldcomp) {
+        attachModelToField(value, fieldcomp);
         
-        if (cellcomp instanceof InputElement) {
-            ((InputElement)cellcomp).setText(getValueAsText(value));
-        } else if (cellcomp instanceof LabelElement) {
-            ((LabelElement)cellcomp).setLabel(getValueAsText(value));
+        if (fieldcomp instanceof InputElement) {
+            ((InputElement)fieldcomp).setText(getValueAsText(value));
+        } else if (fieldcomp instanceof LabelElement) {
+            ((LabelElement)fieldcomp).setLabel(getValueAsText(value));
         }
     }
 
-    private void attachModelToComponent(final Object value, final Component cellcomp) {
+    private void attachModelToField(final Object value, final Component fieldcomp) {
         for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
-            if (triple.first.isAssignableFrom(cellcomp.getClass())
+            if (triple.first.isAssignableFrom(fieldcomp.getClass())
              && triple.second.isAssignableFrom(value.getClass())) {
                 try {
-                    triple.third.invoke(cellcomp, value);
+                    triple.third.invoke(fieldcomp, value);
                 } catch (Exception e) {
                     LOG.warn("exception when invoke {}/{}, detail: {}",
-                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
+                            fieldcomp, triple.third, ExceptionUtils.exception2detail(e));
                 }
             }
         }
@@ -208,12 +208,12 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         }
     }
 
-    private Component buildCell(final GridCell cell) {
+    private Component buildFieldComponent(final GridField field) {
         try {
-            return cell.component().newInstance();
+            return field.component().newInstance();
         } catch (Exception e) {
             LOG.warn("exception when newInstance for {}, detail:{}",
-                    cell.component(), ExceptionUtils.exception2detail(e));
+                    field.component(), ExceptionUtils.exception2detail(e));
             return new Label(e.toString());
         }
     }
@@ -221,7 +221,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     @SuppressWarnings("unchecked")
     @Override
     public <C extends Component> C getComponent(final String name) {
-        return (C)this._cells.get(name);
+        return (C)this._fields.get(name);
     }
     
     @Override
@@ -255,7 +255,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcRowCount(final Method[] methods) {
         int rows = -1;
         for (Method method : methods) {
-            final GridCell cell = method.getAnnotation(GridCell.class);
+            final GridField cell = method.getAnnotation(GridField.class);
             if (null!=cell) {
                 if (cell.row() > rows) {
                     rows = cell.row();
@@ -268,7 +268,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcColCount(final Method[] methods) {
         int cols = -1;
         for (Method method : methods) {
-            final GridCell cell = method.getAnnotation(GridCell.class);
+            final GridField cell = method.getAnnotation(GridField.class);
             if (null!=cell) {
                 if (cell.col() > cols) {
                     cols = cell.col();
@@ -281,6 +281,6 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private int _rows;
     private int _cols;
     private final T _bean;
-    private final Map<Pair<Integer,Integer>, Triple<Component, Method, Method>> _components = new HashMap<>();
-    private final Map<String, Component> _cells = new HashMap<>();
+    private final Map<Pair<Integer,Integer>, Triple<Component, Method, Method>> _cells = new HashMap<>();
+    private final Map<String, Component> _fields = new HashMap<>();
 }
