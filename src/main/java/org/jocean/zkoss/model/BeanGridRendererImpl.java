@@ -28,6 +28,8 @@ import org.zkoss.zul.ListModel;
 import org.zkoss.zul.Row;
 import org.zkoss.zul.Tree;
 import org.zkoss.zul.TreeModel;
+import org.zkoss.zul.event.ListDataEvent;
+import org.zkoss.zul.event.ListDataListener;
 import org.zkoss.zul.ext.Selectable;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
@@ -115,8 +117,9 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     }
 
     private void attachBeanToField(final T bean, final Method getter, final Method setter, final Component fieldcomp) {
+        Object value = null;
         try {
-            final Object value = getter.invoke(bean);
+            value = getter.invoke(bean);
             if (null!=value) {
                 assignValueToField(value, fieldcomp);
             }
@@ -129,14 +132,43 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
                 ((Disable)fieldcomp).setDisabled(true);
             }
             return;
-        }
-        if (fieldcomp instanceof InputElement) {
-            final InputElement input = (InputElement)fieldcomp;
-            input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
-                @Override
-                public void onEvent(final InputEvent event) throws Exception {
-                    setTextViaMethod(bean, setter, event.getValue());
-                }});
+        } else if (setter.getParameterTypes().length>0) {
+            if (null!=value
+              && value instanceof ListModel ) {
+                ((ListModel<?>)value).addListDataListener(new ListDataListener() {
+                    @Override
+                    public void onChange(final ListDataEvent event) {
+                        if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
+                            if (event.getModel() instanceof Selectable) {
+                                final Selectable<?> selectable = ((Selectable<?>)event.getModel());
+                                try {
+                                    if (!selectable.isSelectionEmpty()) {
+                                        final Object selected = selectable.getSelection().iterator().next();
+                                        if (setter.getParameterTypes()[0].isAssignableFrom(selected.getClass())) {
+                                            setter.invoke(bean, selected);
+                                        }
+                                    } else {
+                                        setter.invoke(bean, (Object)null);
+                                    }
+                                } catch (Exception e) {
+                                    LOG.warn("exception when invoke {}.{}, detail:{}",
+                                            bean, setter, ExceptionUtils.exception2detail(e));
+                                }
+                            }
+                        }
+                    }});
+            }
+            final PropertyEditor editor = PropertyEditorManager.findEditor(setter.getParameterTypes()[0]);
+            if (fieldcomp instanceof InputElement) {
+                final InputElement input = (InputElement)fieldcomp;
+                input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                    @Override
+                    public void onEvent(final InputEvent event) throws Exception {
+                        if (null!=editor) {
+                            setTextViaMethod(bean, setter, editor, event.getValue());
+                        }
+                    }});
+            }
         }
     }
 
@@ -182,12 +214,10 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private void setTextViaMethod(
             final Object bean,
             final Method setter, 
+            final PropertyEditor editor, 
             final String text) throws Exception {
-        final PropertyEditor editor = PropertyEditorManager.findEditor(setter.getParameterTypes()[0]);
-        if (null!=editor) {
-            editor.setAsText(text);
-            setter.invoke(bean, editor.getValue());
-        }
+        editor.setAsText(text);
+        setter.invoke(bean, editor.getValue());
     }
     
     @Override
