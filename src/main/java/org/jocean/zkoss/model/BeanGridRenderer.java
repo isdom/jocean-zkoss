@@ -6,6 +6,6 @@ import org.zkoss.zul.ListModel;
 import org.zkoss.zul.RowRenderer;
 
 public interface BeanGridRenderer<T> extends RowRenderer<T>, Disable, ComponentHub {
-    public <C extends Component> C attachComponent(final int row, final int col, final C comp);
+    public <C extends Component> C attachComponentToCell(final int row, final int col, final C comp);
     public ListModel<T> buildModel();
 }

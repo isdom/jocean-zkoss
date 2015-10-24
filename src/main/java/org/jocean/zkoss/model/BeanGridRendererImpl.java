@@ -55,9 +55,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         for (Method getter : getters) {
             final GridField field = getter.getAnnotation(GridField.class);
             this._cells.put(Pair.of(field.row(), field.col()), 
-                Triple.of(buildCellComponent(field), 
-                        getter, 
-                        findSetter(setters, field.name())));
+                buildCellComponent(field, getter, findSetter(setters, field.name())));
         }
         for (Triple<Component, Method, Method> triple : this._cells.values()) {
             prepareCell(triple, this._bean);
@@ -73,51 +71,35 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private Component buildCellComponent(final GridField field) {
+    private Triple<Component,Method,Method> buildCellComponent(
+            final GridField field, final Method getter, final Method setter) {
         final Component fieldcomp = buildFieldComponent(field);
-        this._fields.put(field.name(), fieldcomp);
+        this._fields.put(field.name(), Pair.of(fieldcomp, setter));
+        return Triple.of(getOrBuildCell(field.name(), fieldcomp), getter, setter);
+    }
+
+    private Component getOrBuildCell(final String name,
+            final Component fieldcomp) {
         if (fieldcomp instanceof LabelElement) {
-            ((LabelElement)fieldcomp).setLabel(field.name());
+            ((LabelElement)fieldcomp).setLabel(name);
             return fieldcomp;
         } else {
             return new Hlayout() {
                 private static final long serialVersionUID = 1L;
             {
-                this.appendChild(new Label(field.name()));
+                this.appendChild(new Label(name));
                 this.appendChild(fieldcomp);
             }};
         }
     }
     
-    @Override
-    public <C extends Component> C attachComponent(final int row, final int col, final C comp) {
-        this._cells.put(Pair.of(row, col), Triple.of((Component)comp, (Method)null, (Method)null));
-        enlargeRowCol(row, col);
-        return comp;
-    }
-    
-    private void enlargeRowCol(final int row, final int col) {
-        if (this._rows <= row) {
-            this._rows = row+1;
-        }
-        if (this._cols <= col) {
-            this._cols = col+1;
-        }
-    }
-
-    @Override
-    public void render(final Row row, final T bean, int rowidx)
-            throws Exception {
-        for (int col = 0; col < this._cols; col++) {
-            row.appendChild(renderCell(this._cells.get(Pair.of(rowidx, col))));
-        }
-    }
-
-    private Component renderCell(final Triple<Component, Method, Method> triple) {
-        if (null == triple) {
-            return new Label("");
-        } else {
-            return triple.first;
+    private Component buildFieldComponent(final GridField field) {
+        try {
+            return field.component().newInstance();
+        } catch (Exception e) {
+            LOG.warn("exception when newInstance for {}, detail:{}",
+                    field.component(), ExceptionUtils.exception2detail(e));
+            return new Label(e.toString());
         }
     }
     
@@ -125,7 +107,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         final Method getter = triple.second;
         final Method setter = triple.third;
         if (null!=getter) {
-            final Component fieldcomp = this._fields.get(getter.getAnnotation(GridField.class).name());
+            final Component fieldcomp = this._fields.get(getter.getAnnotation(GridField.class).name()).first;
             if (null!=fieldcomp) {
                 attachBeanToField(bean, getter, setter, fieldcomp);
             }
@@ -207,21 +189,43 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             setter.invoke(bean, editor.getValue());
         }
     }
-
-    private Component buildFieldComponent(final GridField field) {
-        try {
-            return field.component().newInstance();
-        } catch (Exception e) {
-            LOG.warn("exception when newInstance for {}, detail:{}",
-                    field.component(), ExceptionUtils.exception2detail(e));
-            return new Label(e.toString());
-        }
+    
+    @Override
+    public <C extends Component> C attachComponentToCell(final int row, final int col, final C comp) {
+        this._cells.put(Pair.of(row, col), Triple.of((Component)comp, (Method)null, (Method)null));
+        enlargeRowCol(row, col);
+        return comp;
     }
     
+    private void enlargeRowCol(final int row, final int col) {
+        if (this._rows <= row) {
+            this._rows = row+1;
+        }
+        if (this._cols <= col) {
+            this._cols = col+1;
+        }
+    }
+
+    @Override
+    public void render(final Row row, final T bean, int rowidx)
+            throws Exception {
+        for (int col = 0; col < this._cols; col++) {
+            row.appendChild(renderCell(this._cells.get(Pair.of(rowidx, col))));
+        }
+    }
+
+    private Component renderCell(final Triple<Component, Method, Method> triple) {
+        if (null == triple) {
+            return new Label("");
+        } else {
+            return triple.first;
+        }
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <C extends Component> C getComponent(final String name) {
-        return (C)this._fields.get(name);
+        return (C)this._fields.get(name).first;
     }
     
     @Override
@@ -242,14 +246,28 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     
     @Override
     public boolean isDisabled() {
-        // TODO Auto-generated method stub
-        return false;
+        return this._isDisabled;
     }
 
     @Override
     public void setDisabled(final boolean disabled) {
-        // TODO Auto-generated method stub
-        
+        if (this._isDisabled != disabled) {
+            this._isDisabled = disabled;
+            for (Pair<Component,Method> pair : this._fields.values()) {
+                setFieldDisableStatus(pair.first, pair.second, disabled);
+            }
+        }
+    }
+
+    private void setFieldDisableStatus(
+            final Component fieldcomp,
+            final Method setter,
+            final boolean disabled) {
+        if (null!=setter) {
+            if ( fieldcomp instanceof Disable) {
+                ((Disable)fieldcomp).setDisabled(disabled);
+            }
+        }
     }
     
     private static int calcRowCount(final Method[] methods) {
@@ -280,7 +298,8 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     
     private int _rows;
     private int _cols;
+    private boolean _isDisabled = false;
     private final T _bean;
     private final Map<Pair<Integer,Integer>, Triple<Component, Method, Method>> _cells = new HashMap<>();
-    private final Map<String, Component> _fields = new HashMap<>();
+    private final Map<String, Pair<Component,Method>> _fields = new HashMap<>();
 }
