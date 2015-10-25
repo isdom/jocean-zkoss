@@ -34,6 +34,8 @@ import org.zkoss.zul.ext.Selectable;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
 
+import rx.functions.Action1;
+
 class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static final Logger LOG = 
             LoggerFactory.getLogger(BeanGridRendererImpl.class);
@@ -57,10 +59,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         for (Method getter : getters) {
             final GridField field = getter.getAnnotation(GridField.class);
             this._cells.put(Pair.of(field.row(), field.col()), 
-                buildCellComponent(field, getter, findSetter(setters, field.name())));
-        }
-        for (Triple<Component, Method, Method> triple : this._cells.values()) {
-            prepareCell(triple, this._bean);
+                buildCellComponent(this._bean, field, getter, findSetter(setters, field.name())));
         }
     }
     
@@ -74,8 +73,9 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     }
 
     private Triple<Component,Method,Method> buildCellComponent(
-            final GridField field, final Method getter, final Method setter) {
+            final T bean, final GridField field, final Method getter, final Method setter) {
         final Component fieldcomp = buildFieldComponent(field);
+        initAndBindField(bean, getter, setter, fieldcomp);
         this._fields.put(field.name(), Pair.of(fieldcomp, setter));
         return Triple.of(getOrBuildCell(field.name(), fieldcomp), getter, setter);
     }
@@ -105,18 +105,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         }
     }
     
-    private void prepareCell(final Triple<Component, Method, Method> triple, final T bean) {
-        final Method getter = triple.second;
-        final Method setter = triple.third;
-        if (null!=getter) {
-            final Component fieldcomp = this._fields.get(getter.getAnnotation(GridField.class).name()).first;
-            if (null!=fieldcomp) {
-                attachBeanToField(bean, getter, setter, fieldcomp);
-            }
-        }
-    }
-
-    private void attachBeanToField(final T bean, final Method getter, final Method setter, final Component fieldcomp) {
+    private void initAndBindField(final T bean, final Method getter, final Method setter, final Component fieldcomp) {
         Object value = null;
         try {
             value = getter.invoke(bean);
@@ -133,32 +122,37 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             }
             return;
         } else if (setter.getParameterTypes().length>0) {
-            if (null!=value
-              && value instanceof ListModel ) {
+            final Class<?> setterParamType = setter.getParameterTypes()[0];
+            final Action1<Object> injector = new Action1<Object>() {
+                @Override
+                public void call(final Object v) {
+                    try {
+                        setter.invoke(bean, v);
+                    } catch (Exception e) {
+                        LOG.warn("exception when invoke {}.{}, detail:{}",
+                                bean, setter, ExceptionUtils.exception2detail(e));
+                    }
+                }};
+            if (null!=value && value instanceof ListModel ) {
                 ((ListModel<?>)value).addListDataListener(new ListDataListener() {
                     @Override
                     public void onChange(final ListDataEvent event) {
                         if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
                             if (event.getModel() instanceof Selectable) {
                                 final Selectable<?> selectable = ((Selectable<?>)event.getModel());
-                                try {
-                                    if (!selectable.isSelectionEmpty()) {
-                                        final Object selected = selectable.getSelection().iterator().next();
-                                        if (setter.getParameterTypes()[0].isAssignableFrom(selected.getClass())) {
-                                            setter.invoke(bean, selected);
-                                        }
-                                    } else {
-                                        setter.invoke(bean, (Object)null);
+                                if (!selectable.isSelectionEmpty()) {
+                                    final Object selected = selectable.getSelection().iterator().next();
+                                    if (setterParamType.isAssignableFrom(selected.getClass())) {
+                                        injector.call(selected);
                                     }
-                                } catch (Exception e) {
-                                    LOG.warn("exception when invoke {}.{}, detail:{}",
-                                            bean, setter, ExceptionUtils.exception2detail(e));
+                                } else {
+                                    injector.call(null);
                                 }
                             }
                         }
                     }});
             }
-            final PropertyEditor editor = PropertyEditorManager.findEditor(setter.getParameterTypes()[0]);
+            final PropertyEditor editor = PropertyEditorManager.findEditor(setterParamType);
             if (fieldcomp instanceof InputElement) {
                 final InputElement input = (InputElement)fieldcomp;
                 input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
