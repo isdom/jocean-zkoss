@@ -234,10 +234,17 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             this._component = buildFieldComponent(gridcell);
             this._getter = getter;
             this._setter = setter;
-            initAndBindField();
+            disableCellBySetter();
+            initAndBindCell();
             
         }
         
+        private void disableCellBySetter() {
+            if (null==_setter && _component instanceof Disable) {
+                ((Disable)_component).setDisabled(true);
+            }
+        }
+
         private Component buildFieldComponent(final GridCell gridcell) {
             try {
                 final Component cellcomp = gridcell.component().newInstance();
@@ -253,68 +260,90 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             }
         }
         
-        private void initAndBindField() {
+        private void initAndBindCell() {
+            final Object value = getValueFromCell();
+            
+            if (null!=value) {
+                assignValueToField(value, this._component);
+            }
+            
+            if (isSetterValid()) {
+                bindCellAsListModel(value);
+                bindCellAsInput();
+            }
+        }
+
+        private void bindCellAsInput() {
+            final PropertyEditor editor = PropertyEditorManager.findEditor(setterParameterType());
+            if ( this._component instanceof InputElement) {
+                final InputElement input = (InputElement)this._component;
+                input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                    @Override
+                    public void onEvent(final InputEvent event) throws Exception {
+                        if (null!=editor) {
+                            editor.setAsText(event.getValue());
+                            setValueToCell(editor.getValue());
+                        }
+                    }});
+            }
+        }
+
+        private void bindCellAsListModel(final Object value) {
+            if (null!=value && value instanceof ListModel ) {
+                ((ListModel<?>)value).addListDataListener(new ListDataListener() {
+                    @Override
+                    public void onChange(final ListDataEvent event) {
+                        if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
+                            if (event.getModel() instanceof Selectable) {
+                                final Selectable<?> selectable = ((Selectable<?>)event.getModel());
+                                if (!selectable.isSelectionEmpty()) {
+                                    final Object selected = selectable.getSelection().iterator().next();
+                                    if (setterParameterType().isAssignableFrom(selected.getClass())) {
+                                        setValueToCell(selected);
+                                    }
+                                } else {
+                                    setValueToCell(null);
+                                }
+                            }
+                        }
+                    }});
+            }
+        }
+
+        private boolean isSetterValid() {
+            return null!= this._setter && this._setter.getParameterTypes().length>0;
+        }
+
+        private Class<?> setterParameterType() {
+            return (null!=this._setter && _setter.getParameterTypes().length>0) 
+                    ? this._setter.getParameterTypes()[0]
+                    : null;
+        }
+
+        private Object getValueFromCell() {
             Object value = null;
             try {
-                value = _getter.invoke(_bean);
-                if (null!=value) {
-                    assignValueToField(value, this._component);
+                if (null!=this._getter) {
+                    value = _getter.invoke(_bean);
                 }
             } catch (Exception e) {
                 LOG.warn("exception when invoke {}.{}, detail: {}", 
                         _bean, _getter, ExceptionUtils.exception2detail(e));
-            } 
-            if (null==_setter) {
-                if (_component instanceof Disable) {
-                    ((Disable)_component).setDisabled(true);
-                }
-                return;
-            } else if (_setter.getParameterTypes().length>0) {
-                final Class<?> setterParamType = _setter.getParameterTypes()[0];
-                final Action1<Object> injector = new Action1<Object>() {
-                    @Override
-                    public void call(final Object v) {
-                        try {
-                            _setter.invoke(_bean, v);
-                        } catch (Exception e) {
-                            LOG.warn("exception when invoke {}.{}, detail:{}",
-                                    _bean, _setter, ExceptionUtils.exception2detail(e));
-                        }
-                    }};
-                if (null!=value && value instanceof ListModel ) {
-                    ((ListModel<?>)value).addListDataListener(new ListDataListener() {
-                        @Override
-                        public void onChange(final ListDataEvent event) {
-                            if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
-                                if (event.getModel() instanceof Selectable) {
-                                    final Selectable<?> selectable = ((Selectable<?>)event.getModel());
-                                    if (!selectable.isSelectionEmpty()) {
-                                        final Object selected = selectable.getSelection().iterator().next();
-                                        if (setterParamType.isAssignableFrom(selected.getClass())) {
-                                            injector.call(selected);
-                                        }
-                                    } else {
-                                        injector.call(null);
-                                    }
-                                }
-                            }
-                        }});
-                }
-                final PropertyEditor editor = PropertyEditorManager.findEditor(setterParamType);
-                if (_component instanceof InputElement) {
-                    final InputElement input = (InputElement)_component;
-                    input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
-                        @Override
-                        public void onEvent(final InputEvent event) throws Exception {
-                            if (null!=editor) {
-                                editor.setAsText(event.getValue());
-                                injector.call(editor.getValue());
-                            }
-                        }});
-                }
             }
+            return value;
         }
 
+        private void setValueToCell(final Object v) {
+            try {
+                if (null!=this._setter) {
+                    this._setter.invoke(_bean, v);
+                }
+            } catch (Exception e) {
+                LOG.warn("exception when invoke {}.{}, detail:{}",
+                        _bean, _setter, ExceptionUtils.exception2detail(e));
+            }
+        }
+        
         Component render() {
             if ( null==this._gridcell 
               || this._component instanceof LabelElement) {
@@ -329,12 +358,9 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             }
         }
         
-        void setDisableStatus(
-                final boolean disabled) {
-            if (null!= this._setter) {
-                if ( this._component instanceof Disable) {
-                    ((Disable)_component).setDisabled(disabled);
-                }
+        void setDisableStatus(final boolean disabled) {
+            if (null!= this._setter && this._component instanceof Disable) {
+                ((Disable)this._component).setDisabled(disabled);
             }
         }
     }
@@ -343,6 +369,6 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private int _cols;
     private boolean _isDisabled = false;
     private final T _bean;
-    private final Map<Pair<Integer,Integer>, Cell> _xy2cell = new HashMap<>();
     private final Map<String, Cell> _name2cell = new HashMap<>();
+    private final Map<Pair<Integer,Integer>, Cell> _xy2cell = new HashMap<>();
 }
