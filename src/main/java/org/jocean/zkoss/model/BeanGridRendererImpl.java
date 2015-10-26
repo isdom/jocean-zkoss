@@ -11,7 +11,7 @@ import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.Pair;
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.idiom.Triple;
-import org.jocean.zkoss.annotation.GridField;
+import org.jocean.zkoss.annotation.GridCell;
 import org.jocean.zkoss.annotation.ValueSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,14 +52,14 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     public BeanGridRendererImpl(final T bean) {
         this._bean = bean;
         final Class<?> cls = bean.getClass();
-        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridField.class);
+        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
         final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, ValueSetter.class);
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
-            final GridField field = getter.getAnnotation(GridField.class);
-            this._xy2cell.put(Pair.of(field.row(), field.col()), 
-                buildCellComponent(this._bean, field, getter, findSetter(setters, field.name())));
+            final GridCell gidcell = getter.getAnnotation(GridCell.class);
+            this._xy2cell.put(Pair.of(gidcell.row(), gidcell.col()), 
+                buildCellComponent(gidcell, getter, findSetter(setters, gidcell.name())));
         }
     }
     
@@ -72,111 +72,34 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private Cell buildCellComponent(
-            final T bean, final GridField field, final Method getter, final Method setter) {
-        final Component fieldcomp = buildFieldComponent(field);
-        initAndBindField(bean, getter, setter, fieldcomp);
-        final Cell cell = new Cell(field, fieldcomp, getter, setter);
-        this._name2cell.put(field.name(), cell);
+    private Cell buildCellComponent(final GridCell gidcell, 
+            final Method getter, 
+            final Method setter) {
+        final Cell cell = new Cell(gidcell, getter, setter);
+        this._name2cell.put(gidcell.name(), cell);
         return cell;
     }
 
-    private Component buildFieldComponent(final GridField field) {
-        try {
-            final Component fieldcomp = field.component().newInstance();
-            if (fieldcomp instanceof LabelElement) {
-                ((LabelElement)fieldcomp).setLabel(field.name());
-                return fieldcomp;
-            }
-            return fieldcomp;
-        } catch (Exception e) {
-            LOG.warn("exception when newInstance for {}, detail:{}",
-                    field.component(), ExceptionUtils.exception2detail(e));
-            return new Label(e.toString());
-        }
-    }
-    
-    private void initAndBindField(final T bean, final Method getter, final Method setter, final Component fieldcomp) {
-        Object value = null;
-        try {
-            value = getter.invoke(bean);
-            if (null!=value) {
-                assignValueToField(value, fieldcomp);
-            }
-        } catch (Exception e) {
-            LOG.warn("exception when invoke {}.{}, detail: {}", 
-                    bean, getter, ExceptionUtils.exception2detail(e));
-        } 
-        if (null==setter) {
-            if (fieldcomp instanceof Disable) {
-                ((Disable)fieldcomp).setDisabled(true);
-            }
-            return;
-        } else if (setter.getParameterTypes().length>0) {
-            final Class<?> setterParamType = setter.getParameterTypes()[0];
-            final Action1<Object> injector = new Action1<Object>() {
-                @Override
-                public void call(final Object v) {
-                    try {
-                        setter.invoke(bean, v);
-                    } catch (Exception e) {
-                        LOG.warn("exception when invoke {}.{}, detail:{}",
-                                bean, setter, ExceptionUtils.exception2detail(e));
-                    }
-                }};
-            if (null!=value && value instanceof ListModel ) {
-                ((ListModel<?>)value).addListDataListener(new ListDataListener() {
-                    @Override
-                    public void onChange(final ListDataEvent event) {
-                        if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
-                            if (event.getModel() instanceof Selectable) {
-                                final Selectable<?> selectable = ((Selectable<?>)event.getModel());
-                                if (!selectable.isSelectionEmpty()) {
-                                    final Object selected = selectable.getSelection().iterator().next();
-                                    if (setterParamType.isAssignableFrom(selected.getClass())) {
-                                        injector.call(selected);
-                                    }
-                                } else {
-                                    injector.call(null);
-                                }
-                            }
-                        }
-                    }});
-            }
-            final PropertyEditor editor = PropertyEditorManager.findEditor(setterParamType);
-            if (fieldcomp instanceof InputElement) {
-                final InputElement input = (InputElement)fieldcomp;
-                input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
-                    @Override
-                    public void onEvent(final InputEvent event) throws Exception {
-                        if (null!=editor) {
-                            setTextViaMethod(bean, setter, editor, event.getValue());
-                        }
-                    }});
-            }
-        }
-    }
-
     private void assignValueToField(final Object value,
-            final Component fieldcomp) {
-        attachModelToField(value, fieldcomp);
+            final Component cellcomp) {
+        attachModelToField(value, cellcomp);
         
-        if (fieldcomp instanceof InputElement) {
-            ((InputElement)fieldcomp).setText(getValueAsText(value));
-        } else if (fieldcomp instanceof LabelElement) {
-            ((LabelElement)fieldcomp).setLabel(getValueAsText(value));
+        if (cellcomp instanceof InputElement) {
+            ((InputElement)cellcomp).setText(getValueAsText(value));
+        } else if (cellcomp instanceof LabelElement) {
+            ((LabelElement)cellcomp).setLabel(getValueAsText(value));
         }
     }
 
-    private void attachModelToField(final Object value, final Component fieldcomp) {
+    private void attachModelToField(final Object value, final Component cellcomp) {
         for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
-            if (triple.first.isAssignableFrom(fieldcomp.getClass())
+            if (triple.first.isAssignableFrom(cellcomp.getClass())
              && triple.second.isAssignableFrom(value.getClass())) {
                 try {
-                    triple.third.invoke(fieldcomp, value);
+                    triple.third.invoke(cellcomp, value);
                 } catch (Exception e) {
                     LOG.warn("exception when invoke {}/{}, detail: {}",
-                            fieldcomp, triple.third, ExceptionUtils.exception2detail(e));
+                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
                 }
             }
         }
@@ -196,18 +119,9 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         }
     }
 
-    private void setTextViaMethod(
-            final Object bean,
-            final Method setter, 
-            final PropertyEditor editor, 
-            final String text) throws Exception {
-        editor.setAsText(text);
-        setter.invoke(bean, editor.getValue());
-    }
-    
     @Override
     public <C extends Component> C attachComponentToCell(final int row, final int col, final C comp) {
-        this._xy2cell.put(Pair.of(row, col),new Cell(null, (Component)comp, (Method)null, (Method)null));
+        this._xy2cell.put(Pair.of(row, col),new Cell((Component)comp));
         enlargeRowCol(row, col);
         return comp;
     }
@@ -277,7 +191,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcRowCount(final Method[] methods) {
         int rows = -1;
         for (Method method : methods) {
-            final GridField cell = method.getAnnotation(GridField.class);
+            final GridCell cell = method.getAnnotation(GridCell.class);
             if (null!=cell) {
                 if (cell.row() > rows) {
                     rows = cell.row();
@@ -290,7 +204,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcColCount(final Method[] methods) {
         int cols = -1;
         for (Method method : methods) {
-            final GridField cell = method.getAnnotation(GridField.class);
+            final GridCell cell = method.getAnnotation(GridCell.class);
             if (null!=cell) {
                 if (cell.col() > cols) {
                     cols = cell.col();
@@ -301,30 +215,115 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     }
     
     private class Cell {
-        private final GridField _field;
+        private final GridCell _gridcell;
         private final Component _component;
         private final Method _getter;
         private final Method _setter;
         
-        Cell(final GridField field, 
-                final Component component, 
-                final Method getter, 
-                final Method setter) {
-            this._field = field;
+        Cell(final Component component) {
+            this._gridcell = null;
             this._component = component;
-            this._getter = getter;
-            this._setter = setter;
+            this._getter = null;
+            this._setter = null;
         }
         
+        Cell(final GridCell gridcell, 
+            final Method getter, 
+            final Method setter) {
+            this._gridcell = gridcell;
+            this._component = buildFieldComponent(gridcell);
+            this._getter = getter;
+            this._setter = setter;
+            initAndBindField();
+            
+        }
+        
+        private Component buildFieldComponent(final GridCell gridcell) {
+            try {
+                final Component cellcomp = gridcell.component().newInstance();
+                if (cellcomp instanceof LabelElement) {
+                    ((LabelElement)cellcomp).setLabel(gridcell.name());
+                    return cellcomp;
+                }
+                return cellcomp;
+            } catch (Exception e) {
+                LOG.warn("exception when newInstance for {}, detail:{}",
+                        gridcell.component(), ExceptionUtils.exception2detail(e));
+                return new Label(e.toString());
+            }
+        }
+        
+        private void initAndBindField() {
+            Object value = null;
+            try {
+                value = _getter.invoke(_bean);
+                if (null!=value) {
+                    assignValueToField(value, this._component);
+                }
+            } catch (Exception e) {
+                LOG.warn("exception when invoke {}.{}, detail: {}", 
+                        _bean, _getter, ExceptionUtils.exception2detail(e));
+            } 
+            if (null==_setter) {
+                if (_component instanceof Disable) {
+                    ((Disable)_component).setDisabled(true);
+                }
+                return;
+            } else if (_setter.getParameterTypes().length>0) {
+                final Class<?> setterParamType = _setter.getParameterTypes()[0];
+                final Action1<Object> injector = new Action1<Object>() {
+                    @Override
+                    public void call(final Object v) {
+                        try {
+                            _setter.invoke(_bean, v);
+                        } catch (Exception e) {
+                            LOG.warn("exception when invoke {}.{}, detail:{}",
+                                    _bean, _setter, ExceptionUtils.exception2detail(e));
+                        }
+                    }};
+                if (null!=value && value instanceof ListModel ) {
+                    ((ListModel<?>)value).addListDataListener(new ListDataListener() {
+                        @Override
+                        public void onChange(final ListDataEvent event) {
+                            if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
+                                if (event.getModel() instanceof Selectable) {
+                                    final Selectable<?> selectable = ((Selectable<?>)event.getModel());
+                                    if (!selectable.isSelectionEmpty()) {
+                                        final Object selected = selectable.getSelection().iterator().next();
+                                        if (setterParamType.isAssignableFrom(selected.getClass())) {
+                                            injector.call(selected);
+                                        }
+                                    } else {
+                                        injector.call(null);
+                                    }
+                                }
+                            }
+                        }});
+                }
+                final PropertyEditor editor = PropertyEditorManager.findEditor(setterParamType);
+                if (_component instanceof InputElement) {
+                    final InputElement input = (InputElement)_component;
+                    input.addEventListener(Events.ON_CHANGE, new EventListener<InputEvent>() {
+                        @Override
+                        public void onEvent(final InputEvent event) throws Exception {
+                            if (null!=editor) {
+                                editor.setAsText(event.getValue());
+                                injector.call(editor.getValue());
+                            }
+                        }});
+                }
+            }
+        }
+
         Component render() {
-            if ( null==this._field 
+            if ( null==this._gridcell 
               || this._component instanceof LabelElement) {
                 return this._component;
             } else {
                 return new Hlayout() {
                     private static final long serialVersionUID = 1L;
                 {
-                    this.appendChild(new Label(_field.name()));
+                    this.appendChild(new Label(_gridcell.name()));
                     this.appendChild(_component);
                 }};
             }

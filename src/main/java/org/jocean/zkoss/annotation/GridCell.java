@@ -14,7 +14,7 @@ import org.zkoss.zul.Textbox;
  *
  */
 @Retention(RetentionPolicy.RUNTIME) 
-public @interface GridField {
+public @interface GridCell {
 	public abstract String name();
     public abstract int row();
     public abstract int col();
