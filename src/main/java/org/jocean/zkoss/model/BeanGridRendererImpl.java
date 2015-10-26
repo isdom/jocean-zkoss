@@ -55,9 +55,9 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
-            final GridCell gidcell = getter.getAnnotation(GridCell.class);
-            this._xy2cell.put(Pair.of(gidcell.row(), gidcell.col()), 
-                buildCellComponent(gidcell, getter, findSetter(setters, gidcell.name())));
+            final GridCell gridcell = getter.getAnnotation(GridCell.class);
+            this._xy2cell.put(Pair.of(gridcell.row(), gridcell.col()), 
+                buildCell(gridcell, getter, findSetter(setters, gridcell.name())));
         }
     }
     
@@ -70,51 +70,12 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private Cell buildCellComponent(final GridCell gidcell, 
+    private Cell buildCell(final GridCell gridcell, 
             final Method getter, 
             final Method setter) {
-        final Cell cell = new Cell(gidcell, getter, setter);
-        this._name2cell.put(gidcell.name(), cell);
+        final Cell cell = new Cell(gridcell, getter, setter);
+        this._name2cell.put(gridcell.name(), cell);
         return cell;
-    }
-
-    private void assignValueToField(final Object value,
-            final Component cellcomp) {
-        attachModelToField(value, cellcomp);
-        
-        if (cellcomp instanceof InputElement) {
-            ((InputElement)cellcomp).setText(getValueAsText(value));
-        } else if (cellcomp instanceof LabelElement) {
-            ((LabelElement)cellcomp).setLabel(getValueAsText(value));
-        }
-    }
-
-    private void attachModelToField(final Object value, final Component cellcomp) {
-        for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
-            if (triple.first.isAssignableFrom(cellcomp.getClass())
-             && triple.second.isAssignableFrom(value.getClass())) {
-                try {
-                    triple.third.invoke(cellcomp, value);
-                } catch (Exception e) {
-                    LOG.warn("exception when invoke {}/{}, detail: {}",
-                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
-                }
-            }
-        }
-    }
-
-    private String getValueAsText(final Object value) {
-        if (value instanceof Selectable) {
-            @SuppressWarnings("unchecked")
-            final Set<Object> selected = ((Selectable<Object>)value).getSelection();
-            if (!selected.isEmpty()) {
-                return selected.iterator().next().toString();
-            } else {
-                return null;
-            }
-        } else {
-            return value.toString();
-        }
     }
 
     @Override
@@ -152,7 +113,8 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     @SuppressWarnings("unchecked")
     @Override
     public <C extends Component> C getComponent(final String name) {
-        return (C)this._name2cell.get(name)._component;
+        final Cell cell = this._name2cell.get(name);
+        return null!=cell ? (C)cell._component : null;
     }
     
     @Override
@@ -360,6 +322,45 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             if (null!= this._setter && this._component instanceof Disable) {
                 ((Disable)this._component).setDisabled(disabled);
             }
+        }
+    }
+    
+    private void assignValueToField(final Object value,
+            final Component cellcomp) {
+        attachModelToField(value, cellcomp);
+        
+        if (cellcomp instanceof InputElement) {
+            ((InputElement)cellcomp).setText(getValueAsText(value));
+        } else if (cellcomp instanceof LabelElement) {
+            ((LabelElement)cellcomp).setLabel(getValueAsText(value));
+        }
+    }
+
+    private void attachModelToField(final Object value, final Component cellcomp) {
+        for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
+            if (triple.first.isAssignableFrom(cellcomp.getClass())
+             && triple.second.isAssignableFrom(value.getClass())) {
+                try {
+                    triple.third.invoke(cellcomp, value);
+                } catch (Exception e) {
+                    LOG.warn("exception when invoke {}/{}, detail: {}",
+                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
+                }
+            }
+        }
+    }
+
+    private String getValueAsText(final Object value) {
+        if (value instanceof Selectable) {
+            @SuppressWarnings("unchecked")
+            final Set<Object> selected = ((Selectable<Object>)value).getSelection();
+            if (!selected.isEmpty()) {
+                return selected.iterator().next().toString();
+            } else {
+                return null;
+            }
+        } else {
+            return value.toString();
         }
     }
     
