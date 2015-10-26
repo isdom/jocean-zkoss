@@ -12,7 +12,7 @@ import org.jocean.idiom.Pair;
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.idiom.Triple;
 import org.jocean.zkoss.annotation.GridCell;
-import org.jocean.zkoss.annotation.ValueSetter;
+import org.jocean.zkoss.annotation.CellSetter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zkoss.zk.ui.Component;
@@ -51,7 +51,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         this._bean = bean;
         final Class<?> cls = bean.getClass();
         final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
-        final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, ValueSetter.class);
+        final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, CellSetter.class);
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
@@ -63,7 +63,7 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     
     private Method findSetter(final Method[] setters, final String name) {
         for ( Method m : setters) {
-            if ( name.equals(m.getAnnotation(ValueSetter.class).name())) {
+            if ( name.equals(m.getAnnotation(CellSetter.class).name())) {
                 return m;
             }
         }
