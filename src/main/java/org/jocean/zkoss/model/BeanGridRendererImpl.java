@@ -34,8 +34,6 @@ import org.zkoss.zul.ext.Selectable;
 import org.zkoss.zul.impl.InputElement;
 import org.zkoss.zul.impl.LabelElement;
 
-import rx.functions.Action1;
-
 class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static final Logger LOG = 
             LoggerFactory.getLogger(BeanGridRendererImpl.class);
