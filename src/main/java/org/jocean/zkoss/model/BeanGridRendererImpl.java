@@ -180,6 +180,24 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         private final Method _getter;
         private final Method _setter;
         
+        private final ListDataListener _listDataListener = new ListDataListener() {
+            @Override
+            public void onChange(final ListDataEvent event) {
+                if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
+                    if (event.getModel() instanceof Selectable) {
+                        final Selectable<?> selectable = ((Selectable<?>)event.getModel());
+                        if (!selectable.isSelectionEmpty()) {
+                            final Object selected = selectable.getSelection().iterator().next();
+                            if (setterParameterType().isAssignableFrom(selected.getClass())) {
+                                setValueToCell(selected);
+                            }
+                        } else {
+                            setValueToCell(null);
+                        }
+                    }
+                }
+            }};
+            
         Cell(final Component component) {
             this._gridcell = null;
             this._component = component;
@@ -224,12 +242,55 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             final Object value = getValueFromCell();
             
             if (null!=value) {
-                assignValueToField(value, this._component);
+                attachModelToCell(value);
+                attachInputToCell(value);
             }
             
             if (isSetterValid()) {
                 bindCellAsListModel(value);
                 bindCellAsInput();
+            }
+        }
+
+        private void attachModelToCell(final Object value) {
+            for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
+                if (triple.first.isAssignableFrom(this._component.getClass())
+                 && triple.second.isAssignableFrom(value.getClass())) {
+                    try {
+                        triple.third.invoke(this._component, value);
+                    } catch (Exception e) {
+                        LOG.warn("exception when invoke {}/{}, detail: {}",
+                                this._component, triple.third, ExceptionUtils.exception2detail(e));
+                    }
+                }
+            }
+        }
+
+        private void attachInputToCell(final Object value) {
+            if (this._component instanceof InputElement) {
+                ((InputElement)this._component).setText(getValueAsText(value));
+            } else if (this._component instanceof LabelElement) {
+                ((LabelElement)this._component).setLabel(getValueAsText(value));
+            }
+        }
+
+        private String getValueAsText(final Object value) {
+            if (value instanceof Selectable) {
+                @SuppressWarnings("unchecked")
+                final Set<Object> selected = ((Selectable<Object>)value).getSelection();
+                if (!selected.isEmpty()) {
+                    return selected.iterator().next().toString();
+                } else {
+                    return null;
+                }
+            } else {
+                return value.toString();
+            }
+        }
+        
+        private void bindCellAsListModel(final Object value) {
+            if (null!=value && value instanceof ListModel ) {
+                ((ListModel<?>)value).addListDataListener(this._listDataListener);
             }
         }
 
@@ -243,28 +304,6 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
                         if (null!=editor) {
                             editor.setAsText(event.getValue());
                             setValueToCell(editor.getValue());
-                        }
-                    }});
-            }
-        }
-
-        private void bindCellAsListModel(final Object value) {
-            if (null!=value && value instanceof ListModel ) {
-                ((ListModel<?>)value).addListDataListener(new ListDataListener() {
-                    @Override
-                    public void onChange(final ListDataEvent event) {
-                        if (event.getType() == ListDataEvent.SELECTION_CHANGED ) {
-                            if (event.getModel() instanceof Selectable) {
-                                final Selectable<?> selectable = ((Selectable<?>)event.getModel());
-                                if (!selectable.isSelectionEmpty()) {
-                                    final Object selected = selectable.getSelection().iterator().next();
-                                    if (setterParameterType().isAssignableFrom(selected.getClass())) {
-                                        setValueToCell(selected);
-                                    }
-                                } else {
-                                    setValueToCell(null);
-                                }
-                            }
                         }
                     }});
             }
@@ -322,45 +361,6 @@ class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             if (null!= this._setter && this._component instanceof Disable) {
                 ((Disable)this._component).setDisabled(disabled);
             }
-        }
-    }
-    
-    private void assignValueToField(final Object value,
-            final Component cellcomp) {
-        attachModelToField(value, cellcomp);
-        
-        if (cellcomp instanceof InputElement) {
-            ((InputElement)cellcomp).setText(getValueAsText(value));
-        } else if (cellcomp instanceof LabelElement) {
-            ((LabelElement)cellcomp).setLabel(getValueAsText(value));
-        }
-    }
-
-    private void attachModelToField(final Object value, final Component cellcomp) {
-        for (Triple<Class<? extends Component>,Class<?>,Method> triple : _COMPONENT_MODEL) {
-            if (triple.first.isAssignableFrom(cellcomp.getClass())
-             && triple.second.isAssignableFrom(value.getClass())) {
-                try {
-                    triple.third.invoke(cellcomp, value);
-                } catch (Exception e) {
-                    LOG.warn("exception when invoke {}/{}, detail: {}",
-                            cellcomp, triple.third, ExceptionUtils.exception2detail(e));
-                }
-            }
-        }
-    }
-
-    private String getValueAsText(final Object value) {
-        if (value instanceof Selectable) {
-            @SuppressWarnings("unchecked")
-            final Set<Object> selected = ((Selectable<Object>)value).getSelection();
-            if (!selected.isEmpty()) {
-                return selected.iterator().next().toString();
-            } else {
-                return null;
-            }
-        } else {
-            return value.toString();
         }
     }
     
