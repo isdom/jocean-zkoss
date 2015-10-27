@@ -1,4 +1,4 @@
-package org.jocean.zkoss.model;
+package org.jocean.zkoss.builder;
 
 import org.zkoss.zk.ui.Component;
 

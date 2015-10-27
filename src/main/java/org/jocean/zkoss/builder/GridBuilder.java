@@ -1,4 +1,4 @@
-package org.jocean.zkoss.model;
+package org.jocean.zkoss.builder;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -6,8 +6,7 @@ import java.util.List;
 
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.zkoss.annotation.UIRow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jocean.zkoss.builder.impl.BeanGridRendererImpl;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
 import org.zkoss.zul.Columns;
@@ -19,10 +18,7 @@ import org.zkoss.zul.RowRenderer;
 import rx.functions.Func0;
 import rx.functions.Func2;
 
-public class GridUtil {
-    
-    private static final Logger LOG = 
-            LoggerFactory.getLogger(GridUtil.class);
+public class GridBuilder {
     
     public static void buildColumns(final Columns columns, final Class<?> cls) {
         final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, UIRow.class);
@@ -85,22 +81,4 @@ public class GridUtil {
     public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final T bean) {
         return new BeanGridRendererImpl<T>(bean);
     }
-
-    
-//    @SuppressWarnings("unused")
-//    private static Field[] buildFieldsOfRow(final Class<?> cls, final int row) {
-//        final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, Cell.class);
-//        final int colCount = calcColCount(fields);
-//        final Field[] rowfields = new Field[colCount];
-//        for (Field field : fields) {
-//            final Cell cell = field.getAnnotation(Cell.class);
-//            if (null != cell) {
-//                if ( row == cell.row() ) {
-//                    rowfields[cell.col()] = field;
-//                }
-//            }
-//        }
-//        
-//        return rowfields;
-//    }
 }
