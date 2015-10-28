@@ -8,7 +8,7 @@ import java.util.Set;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.idiom.Triple;
-import org.jocean.zkoss.annotation.GridCell;
+import org.jocean.zkoss.annotation.CellSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zkoss.zk.ui.Component;
@@ -42,7 +42,7 @@ class CellImpl {
     };
 
     private final Object _bean;
-    private final GridCell _gridcell;
+    private final CellSource _gridcell;
     private final Component _component;
     private final Method _getter;
     private final Method _setter;
@@ -73,7 +73,7 @@ class CellImpl {
         this._setter = null;
     }
     
-    CellImpl(final GridCell gridcell, 
+    CellImpl(final CellSource gridcell, 
         final Object bean,
         final Method getter, 
         final Method setter) {
@@ -92,7 +92,7 @@ class CellImpl {
         }
     }
 
-    private Component buildFieldComponent(final GridCell gridcell) {
+    private Component buildFieldComponent(final CellSource gridcell) {
         try {
             final Component cellcomp = gridcell.component().newInstance();
             if (cellcomp instanceof LabelElement) {

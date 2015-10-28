@@ -6,8 +6,8 @@ import java.util.Map;
 
 import org.jocean.idiom.Pair;
 import org.jocean.idiom.ReflectUtils;
-import org.jocean.zkoss.annotation.CellSetter;
-import org.jocean.zkoss.annotation.GridCell;
+import org.jocean.zkoss.annotation.CellStore;
+import org.jocean.zkoss.annotation.CellSource;
 import org.jocean.zkoss.builder.BeanGridRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +25,12 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     public BeanGridRendererImpl(final T bean) {
         this._bean = bean;
         final Class<?> cls = bean.getClass();
-        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, GridCell.class);
-        final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, CellSetter.class);
+        final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, CellSource.class);
+        final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, CellStore.class);
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
-            final GridCell gridcell = getter.getAnnotation(GridCell.class);
+            final CellSource gridcell = getter.getAnnotation(CellSource.class);
             this._xy2cell.put(Pair.of(gridcell.row(), gridcell.col()), 
                 buildCell(gridcell, getter, findSetter(setters, gridcell.name())));
         }
@@ -38,14 +38,14 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     
     private Method findSetter(final Method[] setters, final String name) {
         for ( Method m : setters) {
-            if ( name.equals(m.getAnnotation(CellSetter.class).name())) {
+            if ( name.equals(m.getAnnotation(CellStore.class).name())) {
                 return m;
             }
         }
         return null;
     }
 
-    private CellImpl buildCell(final GridCell gridcell, 
+    private CellImpl buildCell(final CellSource gridcell, 
             final Method getter, 
             final Method setter) {
         final CellImpl cell = new CellImpl(gridcell, this._bean, getter, setter);
@@ -126,7 +126,7 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcRowCount(final Method[] methods) {
         int rows = -1;
         for (Method method : methods) {
-            final GridCell cell = method.getAnnotation(GridCell.class);
+            final CellSource cell = method.getAnnotation(CellSource.class);
             if (null!=cell) {
                 if (cell.row() > rows) {
                     rows = cell.row();
@@ -139,7 +139,7 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static int calcColCount(final Method[] methods) {
         int cols = -1;
         for (Method method : methods) {
-            final GridCell cell = method.getAnnotation(GridCell.class);
+            final CellSource cell = method.getAnnotation(CellSource.class);
             if (null!=cell) {
                 if (cell.col() > cols) {
                     cols = cell.col();

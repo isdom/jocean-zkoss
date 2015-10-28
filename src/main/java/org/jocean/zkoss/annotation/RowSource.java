@@ -11,7 +11,7 @@ import java.lang.annotation.RetentionPolicy;
  *
  */
 @Retention(RetentionPolicy.RUNTIME) 
-public @interface UIRow {
+public @interface RowSource {
 	public abstract String name();
     public abstract int index() default -1;
 }

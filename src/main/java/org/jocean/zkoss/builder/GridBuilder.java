@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jocean.idiom.ReflectUtils;
-import org.jocean.zkoss.annotation.UIRow;
+import org.jocean.zkoss.annotation.RowSource;
 import org.jocean.zkoss.builder.impl.BeanGridRendererImpl;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
@@ -21,10 +21,10 @@ import rx.functions.Func2;
 public class GridBuilder {
     
     public static void buildColumns(final Columns columns, final Class<?> cls) {
-        final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, UIRow.class);
+        final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, RowSource.class);
         
         for (Field field : fields) {
-            final UIRow ui = field.getAnnotation(UIRow.class);
+            final RowSource ui = field.getAnnotation(RowSource.class);
             columns.appendChild(new Column(ui.name()));
         }
     }
@@ -34,7 +34,7 @@ public class GridBuilder {
         @Override
         public void render(final Row row, final T data, int index)
                 throws Exception {
-            final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, UIRow.class);
+            final Field[] fields = ReflectUtils.getAnnotationFieldsOf(cls, RowSource.class);
             for (Field field : fields) {
                 final Object value = field.get(data);
                 if (null!=value) {
