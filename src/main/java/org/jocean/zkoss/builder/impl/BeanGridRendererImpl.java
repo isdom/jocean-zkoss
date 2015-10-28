@@ -30,9 +30,9 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         this._cols = calcColCount(getters);
         this._rows = calcRowCount(getters);
         for (Method getter : getters) {
-            final CellSource gridcell = getter.getAnnotation(CellSource.class);
-            this._xy2cell.put(Pair.of(gridcell.row(), gridcell.col()), 
-                buildCell(gridcell, getter, findSetter(setters, gridcell.name())));
+            final CellSource cellsource = getter.getAnnotation(CellSource.class);
+            this._xy2cell.put(Pair.of(cellsource.row(), cellsource.col()), 
+                buildCell(cellsource, getter, findSetter(setters, cellsource.name())));
         }
     }
     
@@ -45,11 +45,11 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
         return null;
     }
 
-    private CellImpl buildCell(final CellSource gridcell, 
+    private CellImpl buildCell(final CellSource cellsource, 
             final Method getter, 
             final Method setter) {
-        final CellImpl cell = new CellImpl(gridcell, this._bean, getter, setter);
-        this._name2cell.put(gridcell.name(), cell);
+        final CellImpl cell = new CellImpl(cellsource, this._bean, getter, setter);
+        this._name2cell.put(cellsource.name(), cell);
         return cell;
     }
 

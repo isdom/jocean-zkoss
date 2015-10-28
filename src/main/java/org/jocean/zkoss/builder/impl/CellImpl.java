@@ -42,7 +42,7 @@ class CellImpl {
     };
 
     private final Object _bean;
-    private final CellSource _gridcell;
+    private final CellSource _cellsource;
     private final Component _component;
     private final Method _getter;
     private final Method _setter;
@@ -67,18 +67,18 @@ class CellImpl {
         
     CellImpl(final Component component) {
         this._component = component;
-        this._gridcell = null;
+        this._cellsource = null;
         this._bean = null;
         this._getter = null;
         this._setter = null;
     }
     
-    CellImpl(final CellSource gridcell, 
+    CellImpl(final CellSource cellsource, 
         final Object bean,
         final Method getter, 
         final Method setter) {
-        this._gridcell = gridcell;
-        this._component = buildFieldComponent(gridcell);
+        this._cellsource = cellsource;
+        this._component = buildFieldComponent(cellsource);
         this._bean = bean;
         this._getter = getter;
         this._setter = setter;
@@ -92,17 +92,17 @@ class CellImpl {
         }
     }
 
-    private Component buildFieldComponent(final CellSource gridcell) {
+    private Component buildFieldComponent(final CellSource cellsource) {
         try {
-            final Component cellcomp = gridcell.component().newInstance();
+            final Component cellcomp = cellsource.component().newInstance();
             if (cellcomp instanceof LabelElement) {
-                ((LabelElement)cellcomp).setLabel(gridcell.name());
+                ((LabelElement)cellcomp).setLabel(cellsource.name());
                 return cellcomp;
             }
             return cellcomp;
         } catch (Exception e) {
             LOG.warn("exception when newInstance for {}, detail:{}",
-                    gridcell.component(), ExceptionUtils.exception2detail(e));
+                    cellsource.component(), ExceptionUtils.exception2detail(e));
             return new Label(e.toString());
         }
     }
@@ -211,14 +211,14 @@ class CellImpl {
     }
     
     Component render() {
-        if ( null==this._gridcell 
+        if ( null==this._cellsource 
           || this.getComponent() instanceof LabelElement) {
             return this.getComponent();
         } else {
             return new Hlayout() {
                 private static final long serialVersionUID = 1L;
             {
-                this.appendChild(new Label(_gridcell.name()));
+                this.appendChild(new Label(_cellsource.name()));
                 this.appendChild(getComponent());
             }};
         }
