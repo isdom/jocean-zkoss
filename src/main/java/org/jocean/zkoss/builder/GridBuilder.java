@@ -81,4 +81,8 @@ public class GridBuilder {
     public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final T bean) {
         return new BeanGridRendererImpl<T>(bean);
     }
+    
+    public static <T> BeanGridRenderer<T> buildBeanRowRenderer(final T bean, final String style) {
+        return new BeanGridRendererImpl<T>(bean, style);
+    }
 }
