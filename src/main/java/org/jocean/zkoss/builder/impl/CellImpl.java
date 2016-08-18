@@ -12,6 +12,7 @@ import org.jocean.zkoss.annotation.CellSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zkoss.zk.ui.Component;
+import org.zkoss.zk.ui.HtmlBasedComponent;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zk.ui.event.InputEvent;
@@ -76,9 +77,10 @@ class CellImpl {
     CellImpl(final CellSource cellsource, 
         final Object bean,
         final Method getter, 
-        final Method setter) {
+        final Method setter, 
+        final String componentStyle) {
         this._cellsource = cellsource;
-        this._component = buildFieldComponent(cellsource);
+        this._component = buildFieldComponent(cellsource, componentStyle);
         this._bean = bean;
         this._getter = getter;
         this._setter = setter;
@@ -92,12 +94,15 @@ class CellImpl {
         }
     }
 
-    private Component buildFieldComponent(final CellSource cellsource) {
+    private Component buildFieldComponent(final CellSource cellsource, final String componentStyle) {
         try {
             final Component cellcomp = cellsource.component().newInstance();
             if (cellcomp instanceof LabelElement) {
                 ((LabelElement)cellcomp).setLabel(cellsource.name());
                 return cellcomp;
+            }
+            if (cellcomp instanceof HtmlBasedComponent) {
+                ((HtmlBasedComponent)cellcomp).setStyle(componentStyle);
             }
             return cellcomp;
         } catch (Exception e) {

@@ -22,8 +22,9 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private static final Logger LOG = 
             LoggerFactory.getLogger(BeanGridRendererImpl.class);
     
-    public BeanGridRendererImpl(final T bean) {
+    public BeanGridRendererImpl(final T bean, final String defaultStyle) {
         this._bean = bean;
+        this._defaultComponentStyle = defaultStyle;
         final Class<?> cls = bean.getClass();
         final Method[] getters = ReflectUtils.getAnnotationMethodsOf(cls, CellSource.class);
         final Method[] setters = ReflectUtils.getAnnotationMethodsOf(cls, CellStore.class);
@@ -34,6 +35,9 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
             this._xy2cell.put(Pair.of(cellsource.row(), cellsource.col()), 
                 buildCell(cellsource, getter, findSetter(setters, cellsource.name())));
         }
+    }
+    public BeanGridRendererImpl(final T bean) {
+        this(bean, null);
     }
     
     private Method findSetter(final Method[] setters, final String name) {
@@ -48,7 +52,7 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private CellImpl buildCell(final CellSource cellsource, 
             final Method getter, 
             final Method setter) {
-        final CellImpl cell = new CellImpl(cellsource, this._bean, getter, setter);
+        final CellImpl cell = new CellImpl(cellsource, this._bean, getter, setter, this._defaultComponentStyle);
         this._name2cell.put(cellsource.name(), cell);
         return cell;
     }
@@ -153,6 +157,7 @@ public class BeanGridRendererImpl<T> implements BeanGridRenderer<T> {
     private int _cols;
     private boolean _isDisabled = false;
     private final T _bean;
+    private final String _defaultComponentStyle;
     private final Map<String, CellImpl> _name2cell = new HashMap<>();
     private final Map<Pair<Integer,Integer>, CellImpl> _xy2cell = new HashMap<>();
 }
