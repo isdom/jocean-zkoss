@@ -7,9 +7,11 @@
     <bean class="org.jocean.jetty.JettyWebapp"
         init-method="start"
         destroy-method="stop">
-        <constructor-arg name="host" value="${webapp.host}"/>
-        <constructor-arg name="port" value="${webapp.port:0}"/>
+        <constructor-arg name="host"    value="${webapp.host}"/>
+        <constructor-arg name="port"    value="${webapp.port:0}"/>
         <constructor-arg name="contextPath" value="${webapp.path}"/>
+        <constructor-arg name="category" value="${webapp.category}"/>
+        <constructor-arg name="priority" value="${webapp.priority}"/>
     </bean>
     
 </beans>

@@ -15,10 +15,17 @@ import org.jocean.j2se.jmx.MBeanRegisterAware;
 
 public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
     
-    public JettyWebapp(final String host, final int port, final String contextPath) {
+    public JettyWebapp(final String host, 
+            final int port, 
+            final String contextPath, 
+            final String category,
+            final int priority
+            ) {
         this._host = host;
         this._port = port;
         this._contextPath = contextPath;
+        this._category = category;
+        this._priority = priority;
         this._mbContainer=new MBeanContainer(ManagementFactory.getPlatformMBeanServer());
     }
     
@@ -115,10 +122,27 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
     }
 
     @Override
+    public String getCategory() {
+        return this._category;
+    }
+
+    @Override
+    public String getPathPattern() {
+        return _contextPath+"/[/|\\w]*";
+    }
+
+    @Override
+    public int getPriority() {
+        return this._priority;
+    }
+    
+    @Override
     public void setMBeanRegister(final MBeanRegister register) {
         this._unitsRegister = register;
     }
 
+    private final String _category;
+    private final int   _priority;
     private int _localPort;
     private final MBeanContainer _mbContainer;
     private final String  _host;
