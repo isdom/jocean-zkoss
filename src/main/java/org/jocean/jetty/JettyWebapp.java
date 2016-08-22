@@ -70,14 +70,20 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
                 + System.getProperty("file.separator")
                 + System.getProperty("app.name")
                 + ".jar";
-        final File tmpdir = new File(System.getProperty("user.home") 
-                + System.getProperty("file.separator")
-                + ".jetty");
-        if (!tmpdir.exists()) {
-            tmpdir.mkdirs();
+        if ( new File(warfile).exists() ) {
+            final File tmpdir = new File(System.getProperty("user.home") 
+                    + System.getProperty("file.separator")
+                    + ".jetty");
+            if (!tmpdir.exists()) {
+                tmpdir.mkdirs();
+            }
+            context.setTempDirectory(tmpdir);
+            context.setWar(warfile);
+        } else {
+            context.setDescriptor( "scripts/webcontent/WEB-INF/web.xml");
+            context.setResourceBase( "scripts/webcontent/");
+            context.setParentLoaderPriority(true);
         }
-        context.setTempDirectory(tmpdir);
-        context.setWar(warfile);
         server.setHandler(context);
  
         server.start();
