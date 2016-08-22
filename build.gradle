@@ -21,5 +21,9 @@ dependencies {
     compile "org.zkoss.zk:zkbind:${zkossVersion}"
     compile "org.zkoss.zk:zul:${zkossVersion}"
     
+    /* jetty */
+    compile "org.eclipse.jetty:jetty-webapp:${jettyVersion}"
+    compile "org.eclipse.jetty:jetty-jmx:${jettyVersion}"
+    
     testCompile 'junit:junit:4.12'
 }
