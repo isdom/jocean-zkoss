@@ -3,6 +3,7 @@ package org.jocean.jetty;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
 
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
@@ -10,10 +11,19 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.webapp.WebAppContext;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.j2se.jmx.MBeanRegister;
 import org.jocean.j2se.jmx.MBeanRegisterAware;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 
-public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
+public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, ApplicationContextAware {
+    
+    private static final Logger LOG = 
+            LoggerFactory.getLogger(JettyWebapp.class);
     
     public JettyWebapp(final String host, 
             final int port, 
@@ -30,6 +40,9 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
     }
     
     public void start() throws Exception {
+        
+        JoceanContextLoaderListener.registerParentCtx(this._contextPath, this._applicationContext);
+        
         final InetSocketAddress address = new InetSocketAddress(this._host, this._port);
         final Server server = new Server(address);
         
@@ -47,8 +60,20 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
                         }
                         @Override
                         public void lifeCycleStarted(LifeCycle event) {
-                            _localPort = ((ServerConnector)event).getLocalPort();
-                            _unitsRegister.registerMBean("webapp="+_contextPath, JettyWebapp.this);
+                            try {
+                                final ServerConnector connector = (ServerConnector)event;
+                                final ServerSocketChannel channel = (ServerSocketChannel)connector.getTransport();
+                                final InetSocketAddress addr = (InetSocketAddress)channel.getLocalAddress();
+                                _localPort = connector.getLocalPort();
+                                _bindip = null != addr.getAddress()
+                                        ? addr.getAddress().getHostAddress()
+                                        : "0.0.0.0";
+                            } catch(Exception e) {
+                                LOG.warn("exception when get local address info, detail: {}", 
+                                        ExceptionUtils.exception2detail(e));
+                            }
+                            _unitsRegister.registerMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort, 
+                                    JettyWebapp.this);
                         }
                         @Override
                         public void lifeCycleFailure(LifeCycle event,
@@ -59,7 +84,7 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
                         }
                         @Override
                         public void lifeCycleStopped(LifeCycle event) {
-                            _unitsRegister.unregisterMBean("webapp="+_contextPath);
+                            _unitsRegister.unregisterMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort);
                         }});
                 }
             }
@@ -95,6 +120,18 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
  
         server.start();
         this._server = server;
+        
+//        final ServletContext sc = context.getServletContext();
+//        final WebApplicationContext wac = WebApplicationContextUtils.getRequiredWebApplicationContext(sc);
+//        LOG.debug("getBean: {}", wac.getBean("signalClient"));
+//        if (wac instanceof ConfigurableWebApplicationContext) {
+//            final ConfigurableWebApplicationContext cwac = (ConfigurableWebApplicationContext) wac;
+//            if ( null == cwac.getParent() ) {
+//                cwac.setParent(this._applicationContext);
+//                LOG.debug("({}).setParent with ({}) success.", cwac, this._applicationContext);
+//                LOG.debug("getBean: {}", this._applicationContext.getBean("signalClient"));
+//            }
+//        }
     }
     
     public void stop() throws Exception {
@@ -106,19 +143,24 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
     }
     
     /**
-     * @return the localPort
-     */
-    @Override
-    public int getLocalPort() {
-        return this._localPort;
-    }
-
-    /**
      * @return the host
      */
     @Override
     public String getHost() {
         return this._host;
+    }
+
+    @Override
+    public String getBindIp() {
+        return this._bindip;
+    }
+    
+    /**
+     * @return the localPort
+     */
+    @Override
+    public int getPort() {
+        return this._localPort;
     }
 
     @Override
@@ -141,13 +183,21 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean {
         this._unitsRegister = register;
     }
 
+    @Override
+    public void setApplicationContext(final ApplicationContext applicationContext)
+            throws BeansException {
+        this._applicationContext = applicationContext;
+    }
+    
     private final String _category;
     private final int   _priority;
     private int _localPort;
     private final MBeanContainer _mbContainer;
     private final String  _host;
+    private String  _bindip;
     private final int     _port;
     private final String  _contextPath;
     private MBeanRegister _unitsRegister;
+    private ApplicationContext _applicationContext;
     private Server _server;
 }

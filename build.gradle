@@ -25,6 +25,10 @@ dependencies {
     /* jetty */
     compile "org.eclipse.jetty:jetty-webapp:${jettyVersion}"
     compile "org.eclipse.jetty:jetty-jmx:${jettyVersion}"
+
+    /* spring */
+    compile "org.springframework:spring-context-support:${springVersion}"
+    compile "org.springframework:spring-web:${springVersion}"
     
     testCompile 'junit:junit:4.12'
 }
