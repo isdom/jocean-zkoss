@@ -12,15 +12,18 @@ import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.j2se.PropertyPlaceholderConfigurerAware;
 import org.jocean.j2se.jmx.MBeanRegister;
 import org.jocean.j2se.jmx.MBeanRegisterAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.PropertyPlaceholderConfigurer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
-public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, ApplicationContextAware {
+public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, 
+    ApplicationContextAware, PropertyPlaceholderConfigurerAware {
     
     private static final Logger LOG = 
             LoggerFactory.getLogger(JettyWebapp.class);
@@ -42,6 +45,9 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, Applicatio
     public void start() throws Exception {
         
         JoceanContextLoaderListener.registerParentCtx(this._contextPath, this._applicationContext);
+        if (null != this._configurer) {
+            SetPlaceholderConfigurerInitializer.registerPlaceholderConfigurer(this._contextPath, this._configurer);
+        }
         
         final InetSocketAddress address = new InetSocketAddress(this._host, this._port);
         final Server server = new Server(address);
@@ -120,18 +126,6 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, Applicatio
  
         server.start();
         this._server = server;
-        
-//        final ServletContext sc = context.getServletContext();
-//        final WebApplicationContext wac = WebApplicationContextUtils.getRequiredWebApplicationContext(sc);
-//        LOG.debug("getBean: {}", wac.getBean("signalClient"));
-//        if (wac instanceof ConfigurableWebApplicationContext) {
-//            final ConfigurableWebApplicationContext cwac = (ConfigurableWebApplicationContext) wac;
-//            if ( null == cwac.getParent() ) {
-//                cwac.setParent(this._applicationContext);
-//                LOG.debug("({}).setParent with ({}) success.", cwac, this._applicationContext);
-//                LOG.debug("getBean: {}", this._applicationContext.getBean("signalClient"));
-//            }
-//        }
     }
     
     public void stop() throws Exception {
@@ -189,6 +183,11 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, Applicatio
         this._applicationContext = applicationContext;
     }
     
+    @Override
+    public void setPropertyPlaceholderConfigurer(final PropertyPlaceholderConfigurer configurer) {
+        this._configurer = configurer;
+        
+    }
     private final String _category;
     private final int   _priority;
     private int _localPort;
@@ -199,5 +198,7 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, Applicatio
     private final String  _contextPath;
     private MBeanRegister _unitsRegister;
     private ApplicationContext _applicationContext;
+    private PropertyPlaceholderConfigurer _configurer;
     private Server _server;
+
 }
