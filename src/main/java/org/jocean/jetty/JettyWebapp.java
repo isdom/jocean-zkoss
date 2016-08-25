@@ -4,6 +4,7 @@ import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
+import java.util.Properties;
 
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
@@ -13,6 +14,7 @@ import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.j2se.PropertiesResourceAware;
 import org.jocean.j2se.PropertyPlaceholderConfigurerAware;
 import org.jocean.j2se.jmx.MBeanRegister;
 import org.jocean.j2se.jmx.MBeanRegisterAware;
@@ -25,7 +27,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.StringUtils;
 
 public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, 
-    ApplicationContextAware, PropertyPlaceholderConfigurerAware {
+    ApplicationContextAware, PropertyPlaceholderConfigurerAware, PropertiesResourceAware {
     
     private static final Logger LOG = 
             LoggerFactory.getLogger(JettyWebapp.class);
@@ -48,7 +50,11 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         
         JoceanContextLoaderListener.registerParentCtx(this._contextPath, this._applicationContext);
         if (null != this._configurer) {
-            SetPlaceholderConfigurerInitializer.registerPlaceholderConfigurer(this._contextPath, this._configurer);
+            JoceanWebApplicationContextInitializer.registerPlaceholderConfigurer(this._contextPath, this._configurer);
+        }
+        
+        if (null != this._propertiesResource) {
+            JoceanWebApplicationContextInitializer.registerPropertiesResource(this._contextPath, this._propertiesResource);
         }
         
         final InetSocketAddress address = new InetSocketAddress(this._host, this._port);
@@ -217,6 +223,11 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         
     }
     
+    @Override
+    public void setPropertiesResource(final Properties properties) {
+        this._propertiesResource = properties;
+    }
+
     /**
      * @param configurationClassList the configurationClassList to set
      */
@@ -267,6 +278,6 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
     private MBeanRegister _unitsRegister;
     private ApplicationContext _applicationContext;
     private PropertyPlaceholderConfigurer _configurer;
+    private Properties _propertiesResource;
     private Server _server;
-
 }
