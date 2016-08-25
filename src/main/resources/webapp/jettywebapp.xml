@@ -12,6 +12,8 @@
         <constructor-arg name="contextPath" value="${webapp.path}"/>
         <constructor-arg name="category" value="${webapp.category}"/>
         <constructor-arg name="priority" value="${webapp.priority}"/>
+        <property name="configurationClasses" value="${webapp.confclasses:}"/>
+        <property name="contextAttributes" value="${webapp.ctxattrs:}"/>
     </bean>
     
 </beans>

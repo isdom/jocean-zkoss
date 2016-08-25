@@ -13,4 +13,8 @@ public interface WebappMXBean {
     public String getPathPattern();
     
     public int getPriority();
+    
+    public String[] getContextAttributes();
+    
+    public String[] getConfigurationClasses();
 }

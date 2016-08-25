@@ -10,6 +10,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.j2se.PropertyPlaceholderConfigurerAware;
@@ -21,6 +22,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.PropertyPlaceholderConfigurer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.StringUtils;
 
 public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, 
     ApplicationContextAware, PropertyPlaceholderConfigurerAware {
@@ -122,6 +124,32 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
             context.setResourceBase( "scripts/webcontent/");
             context.setParentLoaderPriority(true);
         }
+        
+        if (null != this._configurationClasses && this._configurationClasses.length > 0) {
+            // This webapp will use jsps and jstl. We need to enable the
+            // AnnotationConfiguration in order to correctly
+            // set up the jsp container
+            final Configuration.ClassList classlist = Configuration.ClassList
+                    .setServerDefault( server );
+            classlist.addBefore(
+                    "org.eclipse.jetty.webapp.JettyWebXmlConfiguration", this._configurationClasses);
+//                        "org.eclipse.jetty.annotations.AnnotationConfiguration" );
+        }
+        
+        if (null != this._contextAttributes && this._contextAttributes.length > 0) {
+            // Set the ContainerIncludeJarPattern so that jetty examines these
+            // container-path jars for tlds, web-fragments etc.
+            // If you omit the jar that contains the jstl .tlds, the jsp engine will
+            // scan for them instead.
+            for (int idx=0; idx<this._contextAttributes.length / 2; idx++) {
+                context.setAttribute(this._contextAttributes[idx *2], this._contextAttributes[idx*2+1]);
+                
+            }
+//            context.setAttribute(
+//                    "org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
+//                    ".*/[^/]*servlet-api-[^/]*\\.jar$|.*/javax.servlet.jsp.jstl-.*\\.jar$|.*/[^/]*taglibs.*\\.jar$|.*/[^/]*struts2-core-[^/]*\\.jar$" );
+        }
+        
         server.setHandler(context);
  
         server.start();
@@ -188,6 +216,46 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         this._configurer = configurer;
         
     }
+    
+    /**
+     * @param configurationClassList the configurationClassList to set
+     */
+    public void setConfigurationClasses(final String configurationClassList) {
+        if (null != configurationClassList && !configurationClassList.isEmpty()) {
+            final String[] configurationClasses = 
+                    StringUtils.commaDelimitedListToStringArray(configurationClassList);
+            if (null != configurationClasses && configurationClasses.length > 0) {
+                this._configurationClasses = configurationClasses;
+            }
+        }
+    }
+    
+    @Override
+    public String[] getConfigurationClasses() {
+        return this._configurationClasses;
+    }
+    
+    /**
+     * @param contextAttributes the _contextAttributes to set
+     */
+    public void setContextAttributes(final String contextAttributes) {
+        if (null != contextAttributes && !contextAttributes.isEmpty()) {
+            final String[] attributes = 
+                    StringUtils.commaDelimitedListToStringArray(contextAttributes);
+            if (null != attributes && attributes.length > 0) {
+                this._contextAttributes = attributes;
+            }
+        }
+    }
+
+    @Override
+    public String[] getContextAttributes() {
+        return this._contextAttributes;
+    }
+
+    private String[] _configurationClasses;
+    private String[] _contextAttributes;
+    
     private final String _category;
     private final int   _priority;
     private int _localPort;
