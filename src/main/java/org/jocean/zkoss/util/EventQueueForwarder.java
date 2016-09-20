@@ -21,9 +21,9 @@ import rx.functions.Action1;
  * @author isdom
  *
  */
-public class ForwarderOverEventQueue<T> implements InvocationHandler {
+public class EventQueueForwarder<T> implements InvocationHandler {
     private static final Logger LOG =
-            LoggerFactory.getLogger(ForwarderOverEventQueue.class);
+            LoggerFactory.getLogger(EventQueueForwarder.class);
 
     public Object invoke(final Object obj, final Method method, final Object[] args)
             throws Throwable {
@@ -59,7 +59,7 @@ public class ForwarderOverEventQueue<T> implements InvocationHandler {
     }
 
     @SuppressWarnings("unchecked")
-    public ForwarderOverEventQueue(final Class<T> intf, 
+    public EventQueueForwarder(final Class<T> intf, 
             final EventQueue<Event> eventqueue) {
         this._intfs = new Class[]{intf};
         this._eventqueue = eventqueue;
