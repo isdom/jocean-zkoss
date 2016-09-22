@@ -7,6 +7,7 @@ import java.util.List;
 import org.jocean.idiom.ReflectUtils;
 import org.jocean.zkoss.annotation.RowSource;
 import org.jocean.zkoss.builder.impl.BeanGridRendererImpl;
+import org.zkoss.zk.ui.Component;
 import org.zkoss.zul.AbstractListModel;
 import org.zkoss.zul.Column;
 import org.zkoss.zul.Columns;
@@ -38,7 +39,11 @@ public class GridBuilder {
             for (Field field : fields) {
                 final Object value = field.get(data);
                 if (null!=value) {
-                    row.appendChild(new Label(value.toString()));
+                    if (value instanceof Component) {
+                        row.appendChild((Component)value);
+                    } else {
+                        row.appendChild(new Label(value.toString()));
+                    }
                 } else {
                     row.appendChild(new Label("<null>"));
                 }
