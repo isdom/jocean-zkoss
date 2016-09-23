@@ -2,6 +2,7 @@ package org.jocean.zkoss.builder;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -87,6 +88,30 @@ public class GridBuilder {
             final Func0<Integer> fetchTotalSize
             ) {
         return buildListModel(cls, countPerPage, fetchPage, fetchTotalSize, null);
+    }
+    
+    public static <T> Func2<Integer, Integer, List<T>> fetchPageOf(final T[] array) {
+        return new Func2<Integer, Integer, List<T>>() {
+            @Override
+            public List<T> call(final Integer offset, final Integer count) {
+                return Arrays.asList(Arrays.copyOfRange(array, offset, offset + count));
+            }};
+    }
+    
+    public static <T> Func0<Integer> fetchTotalSizeOf(final T[] array) {
+        return new Func0<Integer>() {
+            @Override
+            public Integer call() {
+                return array.length;
+            }};
+    }
+    
+    public static <T> Action1<Comparator<T>> sortModelOf(final T[] array) {
+        return new Action1<Comparator<T>>() {
+            @Override
+            public void call(final Comparator<T> cmpr) {
+                Arrays.sort(array, cmpr);
+            }};
     }
     
     public static <T> ListModel<T> buildListModel(
