@@ -13,6 +13,8 @@ import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
+import org.jocean.idiom.BeanHolder;
+import org.jocean.idiom.BeanHolderAware;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.j2se.PropertiesResourceAware;
 import org.jocean.j2se.PropertyPlaceholderConfigurerAware;
@@ -27,7 +29,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.util.StringUtils;
 
 public class JettyWebapp implements MBeanRegisterAware, WebappMXBean, 
-    ApplicationContextAware, PropertyPlaceholderConfigurerAware, PropertiesResourceAware {
+    ApplicationContextAware, PropertyPlaceholderConfigurerAware, PropertiesResourceAware, BeanHolderAware {
     
     private static final Logger LOG = 
             LoggerFactory.getLogger(JettyWebapp.class);
@@ -55,6 +57,14 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         
         if (null != this._propertiesResource) {
             JoceanWebApplicationContextInitializer.registerPropertiesResource(this._contextPath, this._propertiesResource);
+        }
+        
+        if (null != this._mbeanRegister) {
+            JoceanWebApplicationContextInitializer.registerMBeanRegister(this._contextPath, this._mbeanRegister);
+        }
+        
+        if (null != this._beanHolder) {
+            JoceanWebApplicationContextInitializer.registerBeanHolder(this._contextPath, this._beanHolder);
         }
         
         final InetSocketAddress address = new InetSocketAddress(this._host, this._port);
@@ -86,7 +96,7 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
                                 LOG.warn("exception when get local address info, detail: {}", 
                                         ExceptionUtils.exception2detail(e));
                             }
-                            _unitsRegister.registerMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort, 
+                            _mbeanRegister.registerMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort, 
                                     JettyWebapp.this);
                         }
                         @Override
@@ -98,7 +108,7 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
                         }
                         @Override
                         public void lifeCycleStopped(LifeCycle event) {
-                            _unitsRegister.unregisterMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort);
+                            _mbeanRegister.unregisterMBean("webapp="+_contextPath+",address="+_bindip+",port="+_localPort);
                         }});
                 }
             }
@@ -208,7 +218,7 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
     
     @Override
     public void setMBeanRegister(final MBeanRegister register) {
-        this._unitsRegister = register;
+        this._mbeanRegister = register;
     }
 
     @Override
@@ -228,6 +238,11 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         this._propertiesResource = properties;
     }
 
+    @Override
+    public void setBeanHolder(final BeanHolder beanHolder) {
+        this._beanHolder = beanHolder;
+    }
+    
     /**
      * @param configurationClassList the configurationClassList to set
      */
@@ -275,9 +290,10 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
     private String  _bindip;
     private final int     _port;
     private final String  _contextPath;
-    private MBeanRegister _unitsRegister;
+    private MBeanRegister _mbeanRegister;
     private ApplicationContext _applicationContext;
     private PropertyPlaceholderConfigurer _configurer;
     private Properties _propertiesResource;
+    private BeanHolder _beanHolder;
     private Server _server;
 }
