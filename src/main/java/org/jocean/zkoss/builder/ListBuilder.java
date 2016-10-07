@@ -47,7 +47,7 @@ public class ListBuilder {
         }
     }
     
-    public static <T> ListitemRenderer<T> buildRowRenderer(final Class<T> cls) {
+    public static <T> ListitemRenderer<T> buildItemRenderer(final Class<T> cls) {
         return new ListitemRenderer<T>() {
         @Override
         public void render(final Listitem item, final T data, int index)
