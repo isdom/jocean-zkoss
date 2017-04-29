@@ -11,8 +11,7 @@ configurations {
 dependencies {
     /* jocean */
     compile 'org.jocean:jocean-idiom:0.1.4-SNAPSHOT'
-    compile('org.jocean:jocean-j2se:0.0.4-SNAPSHOT') { transitive = false }
-    // compile 'io.reactivex:rxnetty-common:0.5.2-rc.4'
+    compile 'org.jocean:jocean-j2se:0.0.4-SNAPSHOT'
     
     /* zkoss */
     compile "org.zkoss.zk:zkplus:${zkossVersion}"
@@ -25,7 +24,6 @@ dependencies {
     compile "org.eclipse.jetty:jetty-jmx:${jettyVersion}"
 
     /* spring */
-    compile "org.springframework:spring-context-support:${springVersion}"
     compile "org.springframework:spring-web:${springVersion}"
     
     testCompile 'junit:junit:4.12'
