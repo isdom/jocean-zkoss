@@ -144,6 +144,16 @@ public class JoceanWebApplicationContextInitializer
                                 LOG.info("jettywebapp:: can't found {}/{} locally, try find global.", name, requiredType);
                             }
                             return holder.getBean(name, requiredType);
+                        }
+
+                        @Override
+                        public Object getBean(final String name) {
+                            try {
+                                return applicationContext.getBean(name);
+                            } catch (Exception e) {
+                                LOG.info("jettywebapp: can't found {} locally, try find global.", name);
+                            }
+                            return holder.getBean(name);
                         }}));
                 }});
         }
