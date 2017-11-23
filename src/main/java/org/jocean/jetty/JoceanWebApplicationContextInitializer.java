@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.jocean.idiom.BeanHolder;
-import org.jocean.j2se.jmx.MBeanRegister;
+import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.j2se.jmx.MBeanRegisterSetter;
 import org.jocean.j2se.spring.BeanHolderBasedInjector;
 import org.jocean.j2se.spring.BeanHolderSetter;
