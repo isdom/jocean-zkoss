@@ -6,6 +6,8 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.util.Properties;
 
+import javax.inject.Inject;
+
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -18,6 +20,7 @@ import org.jocean.idiom.BeanHolderAware;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.idiom.jmx.MBeanRegisterAware;
+import org.jocean.j2se.AppInfo;
 import org.jocean.j2se.PropertiesResourceAware;
 import org.jocean.j2se.PropertyPlaceholderConfigurerAware;
 import org.slf4j.Logger;
@@ -119,14 +122,9 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         
         final WebAppContext context = new WebAppContext();
         context.setContextPath(this._contextPath);
+        final String warfile =  warfile();
         
-        final String warfile = System.getProperty("user.dir") 
-                + System.getProperty("file.separator")
-                + "bin"
-                + System.getProperty("file.separator")
-                + System.getProperty("app.name")
-                + ".jar";
-        if ( new File(warfile).exists() ) {
+        if (null != warfile) {
             final File tmpdir = new File(System.getProperty("user.home") 
                     + System.getProperty("file.separator")
                     + ".jetty");
@@ -170,6 +168,20 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
  
         server.start();
         this._server = server;
+    }
+
+    private String warfile() {
+        final String appfilePrefix = System.getProperty("user.dir") 
+                + System.getProperty("file.separator")
+                + "lib"
+                + System.getProperty("file.separator")
+                + System.getProperty("app.name");
+        for (final String file : this._appinfo.getModules().keySet()) {
+            if (file.startsWith(appfilePrefix)) {
+                return file;
+            }
+        }
+        return null;
     }
     
     public void stop() throws Exception {
@@ -279,6 +291,9 @@ public class JettyWebapp implements MBeanRegisterAware, WebappMXBean,
         return this._contextAttributes;
     }
 
+    @Inject
+    private AppInfo _appinfo;
+    
     private String[] _configurationClasses;
     private String[] _contextAttributes;
     
