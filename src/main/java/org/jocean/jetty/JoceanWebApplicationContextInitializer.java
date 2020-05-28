@@ -23,25 +23,25 @@ import org.springframework.web.context.ConfigurableWebApplicationContext;
 public class JoceanWebApplicationContextInitializer
         implements ApplicationContextInitializer<ConfigurableWebApplicationContext> {
 
-    private static final Logger LOG = 
+    private static final Logger LOG =
             LoggerFactory.getLogger(JoceanWebApplicationContextInitializer.class);
-    
+
     public static void registerPlaceholderConfigurer(final String ctxPath, final PropertyPlaceholderConfigurer configurer) {
         _CONFIGURERS.put(ctxPath, configurer);
     }
-    
+
     public static void registerPropertiesResource(final String ctxPath, final Properties properties) {
         _PROPERTIESRESES.put(ctxPath, properties);
     }
-    
+
     public static void registerBeanHolder(final String ctxPath, final BeanHolder beanHolder) {
         _BEANHOLDERS.put(ctxPath, beanHolder);
     }
-    
+
     public static void registerMBeanRegister(final String ctxPath,final MBeanRegister mbeanRegister) {
         _MBEANREGISTERS.put(ctxPath, mbeanRegister);
     }
-    
+
     @Override
     public void initialize(final ConfigurableWebApplicationContext applicationContext) {
         applyPropertyPlaceholderConfigurer(applicationContext);
@@ -112,8 +112,7 @@ public class JoceanWebApplicationContextInitializer
 
     private void applyBeanHolder(
             final ConfigurableWebApplicationContext applicationContext) {
-        final BeanHolder holder = _BEANHOLDERS.get(
-                applicationContext.getServletContext().getContextPath());
+        final BeanHolder holder = _BEANHOLDERS.get(applicationContext.getServletContext().getContextPath());
         if (null != holder) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("apply BeanHolder({}) to ConfigurableWebApplicationContext({})",
@@ -130,7 +129,7 @@ public class JoceanWebApplicationContextInitializer
                         public <T> T getBean(final Class<T> requiredType) {
                             try {
                                 return applicationContext.getBean(requiredType);
-                            } catch (Exception e) {
+                            } catch (final Exception e) {
                                 LOG.info("jettywebapp: can't found {} locally, try find global.", requiredType);
                             }
                             return holder.getBean(requiredType);
@@ -140,7 +139,7 @@ public class JoceanWebApplicationContextInitializer
                         public <T> T getBean(final String name, final Class<T> requiredType) {
                             try {
                                 return applicationContext.getBean(name, requiredType);
-                            } catch (Exception e) {
+                            } catch (final Exception e) {
                                 LOG.info("jettywebapp:: can't found {}/{} locally, try find global.", name, requiredType);
                             }
                             return holder.getBean(name, requiredType);
@@ -150,11 +149,33 @@ public class JoceanWebApplicationContextInitializer
                         public Object getBean(final String name) {
                             try {
                                 return applicationContext.getBean(name);
-                            } catch (Exception e) {
+                            } catch (final Exception e) {
                                 LOG.info("jettywebapp: can't found {} locally, try find global.", name);
                             }
                             return holder.getBean(name);
-                        }}));
+                        }
+
+                        @Override
+                        public Object getBean(final String name, final Object... args) {
+                            try {
+                                return applicationContext.getBean(name, args);
+                            } catch (final Exception e) {
+                                LOG.info("jettywebapp: can't found {} locally, try find global.", name);
+                            }
+                            return holder.getBean(name, args);
+                        }
+
+                        @Override
+                        public <T> T getBean(final Class<T> requiredType, final Object... args) {
+                            try {
+                                return applicationContext.getBean(requiredType, args);
+                            } catch (final Exception e) {
+                                LOG.info("jettywebapp: can't found {} locally, try find global.", requiredType);
+                            }
+                            return holder.getBean(requiredType, args);
+                        }},
+                        // TODO StringValueResolver
+                        null));
                 }});
         }
     }
@@ -163,5 +184,5 @@ public class JoceanWebApplicationContextInitializer
     private static final Map<String, Properties> _PROPERTIESRESES = new HashMap<>();
     private static final Map<String, BeanHolder> _BEANHOLDERS = new HashMap<>();
     private static final Map<String, MBeanRegister> _MBEANREGISTERS = new HashMap<>();
-    
+
 }
