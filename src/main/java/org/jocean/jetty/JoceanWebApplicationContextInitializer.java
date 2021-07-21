@@ -7,7 +7,8 @@ import java.util.Properties;
 import org.jocean.idiom.BeanHolder;
 import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.j2se.jmx.MBeanRegisterSetter;
-import org.jocean.j2se.spring.BeanHolderBasedInjector;
+import org.jocean.j2se.spring.BeanHolderBasedFieldInjector;
+import org.jocean.j2se.spring.BeanHolderBasedMethodInjector;
 import org.jocean.j2se.spring.BeanHolderSetter;
 import org.jocean.j2se.spring.PropertiesResourceSetter;
 import org.jocean.j2se.spring.PropertyPlaceholderConfigurerSetter;
@@ -124,7 +125,7 @@ public class JoceanWebApplicationContextInitializer
                         final ConfigurableListableBeanFactory beanFactory)
                         throws BeansException {
                     beanFactory.addBeanPostProcessor(new BeanHolderSetter(holder));
-                    beanFactory.addBeanPostProcessor(new BeanHolderBasedInjector(new BeanHolder(){
+                    final BeanHolder localHolder = new BeanHolder(){
                         @Override
                         public <T> T getBean(final Class<T> requiredType) {
                             try {
@@ -173,9 +174,16 @@ public class JoceanWebApplicationContextInitializer
                                 LOG.info("jettywebapp: can't found {} locally, try find global.", requiredType);
                             }
                             return holder.getBean(requiredType, args);
-                        }},
-                        // TODO StringValueResolver
-                        null));
+                        }};
+
+
+                    // TBD , add FieldValueSetter
+                    // beanFactory.addBeanPostProcessor(new FieldValueSetter(stringValueResolver));
+                    beanFactory.addBeanPostProcessor(new BeanHolderBasedFieldInjector(localHolder, null)); // TODO StringValueResolver
+
+                    // TBD , add MethodValueSetter
+                    // beanFactory.addBeanPostProcessor(new MethodValueSetter(stringValueResolver));
+                    beanFactory.addBeanPostProcessor(new BeanHolderBasedMethodInjector(localHolder, null)); // TODO StringValueResolver
                 }});
         }
     }
